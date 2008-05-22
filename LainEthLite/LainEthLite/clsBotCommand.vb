@@ -1,0 +1,493 @@
+Option Explicit On 
+Option Strict On
+
+Imports LainBnetCore
+
+Public Class clsBotCommandClassifier
+    Public Enum BotCommandType As Integer
+        INVALID
+        SAY
+        HOST
+        HOSTBY
+        UNHOST
+        VERSION
+        GETGAMES
+        MAP
+
+        'lobby  
+        START
+        [END]
+        OPEN
+        CLOSE
+        SWAP
+        KICK
+        PING
+        COUNTRY
+
+        PUB
+        PRIV
+        REFRESH
+        HOLD
+
+        'game
+        LATENCY
+        GAMECANCEL
+        ABORT
+
+    End Enum
+    Private commandType As BotCommandType
+    Private commandParameter() As String
+    Private commandPayload As String
+
+    Public Sub New()
+        commandType = BotCommandType.INVALID
+        commandParameter = New String() {}
+        commandPayload = ""
+    End Sub
+    Public Sub New(ByVal command As String)
+        Dim param As String()
+        Dim i As Integer
+        Dim list As ArrayList
+
+        param = command.Split(Convert.ToChar(" "))
+        If param.Length >= 1 Then
+
+            commandType = BotCommandType.INVALID
+            For Each comm As clsBotCommandClassifier.BotCommandType In [Enum].GetValues(GetType(clsBotCommandClassifier.BotCommandType))
+                If param(0).ToLower = String.Format("-{0}", comm.ToString.ToLower()) Then
+                    commandType = comm
+                    Exit For
+                End If
+            Next
+
+            commandPayload = ""
+            If param.Length > 1 Then
+                commandPayload = command.Substring(param(0).Length + 1)
+            End If
+            commandParameter = New String() {}
+            If param.Length >= 2 Then
+                list = New ArrayList
+                For i = 1 To param.Length - 1
+                    list.Add(param(i))
+                Next
+                commandParameter = CType(list.ToArray(GetType(String)), String())
+            End If
+        Else
+            commandType = BotCommandType.INVALID
+            commandParameter = New String() {}
+            commandPayload = ""
+        End If
+
+
+    End Sub
+    Public Function GetCommandType() As BotCommandType
+        Return commandType
+    End Function
+    Public Function commandParamameter() As String()
+        Return commandParameter
+    End Function
+    Public Function GetPayLoad() As String
+        Return commandPayload
+    End Function
+End Class
+
+Public MustInherit Class clsBotCommand
+    Protected adminName() As String
+
+
+    Protected Sub New(ByVal adminName() As String)
+        Me.adminName = adminName
+    End Sub
+    Protected Function IsTargeted(ByVal command As String) As Boolean
+        Try
+            If command.StartsWith("-") Then
+                Return True
+            End If
+            Return False
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+    Protected Function IsPrivileged(ByVal user As String, ByVal authorisedUser() As String) As Boolean
+        Dim name As String
+        Try
+            For Each name In authorisedUser
+                If user.ToLower = name.ToLower Then
+                    Return True
+                End If
+            Next
+            Return False
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+End Class
+
+Public Class clsBotCommandHostChannel
+    Inherits clsBotCommand
+
+    Public Event EventBotSay(ByVal msg As String)
+    Public Event EventBotResponse(ByVal msg As String, ByVal isWhisper As Boolean, ByVal owner As String)
+    Public Event EventBotHost(ByVal isPublic As Boolean, ByVal gameName As String, ByVal callerName As String, ByVal isWhisper As Boolean, ByVal owner As String)
+    Public Event EventBotUnHost(ByVal isWhisper As Boolean, ByVal owner As String)
+    Public Event EventBotGetGames(ByVal isWhisper As Boolean, ByVal owner As String)
+    Public Event EventBotMap(ByVal isWhisper As Boolean, ByVal owner As String, ByVal mapName As String)
+
+    Public Sub New(ByVal adminName() As String)
+        MyBase.New(adminName)
+    End Sub
+
+    Public Function ProcessCommand(ByVal data As clsIncomingChatChannel) As Boolean
+        Dim command As clsBotCommandClassifier
+        Dim game As String
+        Dim caller As String
+        Dim isWhisper As Boolean
+        Dim i As Integer
+
+        Try
+            If data.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_TALK OrElse data.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_WHISPER Then
+                If IsTargeted(data.GetMessage) = False Then
+                    Return False
+                End If
+                command = New clsBotCommandClassifier(data.GetMessage)
+                If IsPrivileged(data.GetUser, adminName) = False Then
+                    Return False
+                End If
+                isWhisper = (data.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_WHISPER)
+
+                Select Case command.GetCommandType
+                    Case clsBotCommandClassifier.BotCommandType.INVALID
+                    Case clsBotCommandClassifier.BotCommandType.SAY
+                        RaiseEvent EventBotSay(command.GetPayLoad)
+                    Case clsBotCommandClassifier.BotCommandType.VERSION
+                        RaiseEvent EventBotResponse(frmLainEthLite.ProjectLainVersion, isWhisper, data.GetUser)
+                    Case clsBotCommandClassifier.BotCommandType.HOSTBY
+                        If command.commandParamameter.Length >= 3 Then
+                            caller = command.commandParamameter(0)
+
+                            If caller.Trim.Length > 0 Then
+                                game = ""
+                                For i = 2 To command.commandParamameter.Length - 1
+                                    game = game & command.commandParamameter(i) & " "
+                                Next
+                                game = game.Trim
+                                If game.Length > 0 Then
+                                    If command.commandParamameter(1).ToLower = "public" OrElse command.commandParamameter(1).ToLower = "private" Then
+                                        Select Case command.commandParamameter(1).ToLower
+                                            Case "public"
+                                                RaiseEvent EventBotHost(True, game,  caller, isWhisper, data.GetUser)
+                                            Case "private"
+                                                RaiseEvent EventBotHost(False, game, caller, isWhisper, data.GetUser)
+                                        End Select
+                                        Exit Select
+                                    End If
+                                End If
+                            End If
+                        End If
+
+                        RaiseEvent EventBotResponse("-HOSTBY [creator name] [public|private] [game]", isWhisper, data.GetUser)
+                    Case clsBotCommandClassifier.BotCommandType.HOST
+                        If command.commandParamameter.Length >= 2 Then
+                            game = ""
+                            For i = 1 To command.commandParamameter.Length - 1
+                                game = game & command.commandParamameter(i) & " "
+                            Next
+                            game = game.Trim
+                            If game.Length > 0 Then
+                                If command.commandParamameter(0).ToLower = "public" OrElse command.commandParamameter(0).ToLower = "private" Then
+                                    Select Case command.commandParamameter(0).ToLower
+                                        Case "public"
+                                            RaiseEvent EventBotHost(True, game, data.GetUser, isWhisper, data.GetUser)
+                                        Case "private"
+                                            RaiseEvent EventBotHost(False, game, data.GetUser, isWhisper, data.GetUser)
+                                    End Select
+                                    Exit Select
+                                End If
+                            End If
+                        End If
+                        RaiseEvent EventBotResponse("-HOST [public|private] [game]", isWhisper, data.GetUser)
+                    Case clsBotCommandClassifier.BotCommandType.UNHOST
+                        RaiseEvent EventBotUnHost(isWhisper, data.GetUser)
+                    Case clsBotCommandClassifier.BotCommandType.GETGAMES
+                        RaiseEvent EventBotGetGames(isWhisper, data.GetUser)
+                    Case clsBotCommandClassifier.BotCommandType.MAP
+                        If command.commandParamameter.Length > 0 Then
+                            RaiseEvent EventBotMap(isWhisper, data.GetUser, command.GetPayLoad)
+                        Else
+                            RaiseEvent EventBotResponse("-MAP [map hash xml file name]", isWhisper, data.GetUser)
+                        End If
+                    Case clsBotCommandClassifier.BotCommandType.PUB 'MrJag|0.8c|commands|hosting a public game
+                        game = ""
+                        For i = 0 To command.commandParamameter.Length - 1
+                            game = game & command.commandParamameter(i) & " "
+                        Next
+                        game = game.Trim
+                        If game.Length > 0 Then
+                            RaiseEvent EventBotHost(True, game, data.GetUser, isWhisper, data.GetUser)
+                        End If
+                    Case clsBotCommandClassifier.BotCommandType.PRIV 'MrJag|0.8c|commands|hosting a private game
+                        game = ""
+                        For i = 0 To command.commandParamameter.Length - 1
+                            game = game & command.commandParamameter(i) & " "
+                        Next
+                        game = game.Trim
+                        If game.Length > 0 Then
+                            RaiseEvent EventBotHost(False, game, data.GetUser, isWhisper, data.GetUser)
+                        End If
+                End Select
+            End If
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+
+End Class
+Public Class clsBotCommandHostLobby
+    Inherits clsBotCommand
+
+    Private callerName As String
+
+    Public Event EventBotResponse(ByVal msg As String)
+    Public Event EventBotSlot(ByVal open As Boolean, ByVal slotNumber As Byte)
+    Public Event EventBotStart(ByVal isForced As Boolean)
+    Public Event EventBotEnd()
+    Public Event EventBotSwap(ByVal slot1 As Byte, ByVal slot2 As Byte)
+    Public Event EventBotKick(ByVal name As String)
+    Public Event EventBotPing()
+    Public Event EventBotCountry()
+    Public Event EventBotToggleRefresh(ByVal enabled As Boolean)                    'MrJag|0.9b|refresh|
+    Public Event EventBotHold(ByVal name As String)         'MrJag|0.9b|hold|
+
+
+    Public Sub New(ByVal callerName As String, ByVal adminName As String())
+        MyBase.New(adminName)
+        Me.callerName = callerName
+    End Sub
+
+    Public Function ProcessCommand(ByVal user As String, ByVal msg As String) As Boolean
+        Dim command As clsBotCommandClassifier
+        Dim number As Byte
+        Dim number2 As Byte
+        Dim target As String
+
+        Try
+            If IsTargeted(msg) = False OrElse user.Length = 0 Then
+                Return False
+            End If
+            command = New clsBotCommandClassifier(msg)
+            If user.ToLower <> callerName.ToLower AndAlso IsPrivileged(user, adminName) = False Then
+                Return False
+            End If
+
+            Select Case command.GetCommandType
+                Case clsBotCommandClassifier.BotCommandType.INVALID
+                Case clsBotCommandClassifier.BotCommandType.SAY
+                    RaiseEvent EventBotResponse(command.GetPayLoad)
+                Case clsBotCommandClassifier.BotCommandType.VERSION
+                    RaiseEvent EventBotResponse(frmLainEthLite.ProjectLainVersion)
+                Case clsBotCommandClassifier.BotCommandType.START
+                    If command.commandParamameter.Length = 1 Then
+                        If command.commandParamameter(0).ToLower = "force" Then
+                            RaiseEvent EventBotStart(True)
+                        Else
+                            RaiseEvent EventBotResponse("-START <force>")
+                        End If
+                        Exit Select
+                    End If
+                    RaiseEvent EventBotStart(False)
+                Case clsBotCommandClassifier.BotCommandType.END
+                    RaiseEvent EventBotEnd()
+                Case clsBotCommandClassifier.BotCommandType.SWAP
+                    If command.commandParamameter.Length = 2 Then
+                        If IsNumeric(command.commandParamameter(0)) AndAlso IsNumeric(command.commandParamameter(1)) Then
+                            number = CType(command.commandParamameter(0), Byte)
+                            number2 = CType(command.commandParamameter(1), Byte)
+
+                            If number >= 1 AndAlso number <= 12 AndAlso number2 >= 1 AndAlso number2 <= 12 Then
+                                RaiseEvent EventBotSwap(CType(number - 1, Byte), CType(number2 - 1, Byte))
+                                Exit Select
+                            End If
+                        End If
+                    End If
+                    RaiseEvent EventBotResponse("-SWAP [1..12] [1..12]")
+                Case clsBotCommandClassifier.BotCommandType.OPEN
+                    If command.commandParamameter.Length = 1 Then
+                        If IsNumeric(command.commandParamameter(0)) Then
+                            number = CType(command.commandParamameter(0), Byte)
+                            If number >= 1 AndAlso number <= 12 Then
+                                RaiseEvent EventBotSlot(True, CType(number - 1, Byte))
+                                Exit Select
+                            End If
+                        End If
+                    End If
+                    RaiseEvent EventBotResponse("-OPEN [1..12]")
+                Case clsBotCommandClassifier.BotCommandType.CLOSE
+                    If command.commandParamameter.Length = 1 Then
+                        If IsNumeric(command.commandParamameter(0)) Then
+                            number = CType(command.commandParamameter(0), Byte)
+                            If number >= 1 AndAlso number <= 12 Then
+                                RaiseEvent EventBotSlot(False, CType(number - 1, Byte))
+                                Exit Select
+                            End If
+                        End If
+                    End If
+                    RaiseEvent EventBotResponse("-CLOSE [1..12]")
+                Case clsBotCommandClassifier.BotCommandType.KICK
+                    If command.commandParamameter.Length = 1 Then
+                        target = command.commandParamameter(0)
+                        If target.Trim.Length > 0 Then
+                            RaiseEvent EventBotKick(target)
+                            Exit Select
+                        End If
+                    End If
+                    RaiseEvent EventBotResponse("-KICK [name]")
+                Case clsBotCommandClassifier.BotCommandType.PING
+                    RaiseEvent EventBotPing()
+                Case clsBotCommandClassifier.BotCommandType.COUNTRY
+                    RaiseEvent EventBotCountry()
+                Case clsBotCommandClassifier.BotCommandType.REFRESH    'MrJag|0.9b|hold|
+                    If command.commandParamameter.Length = 1 Then
+                        If command.commandParamameter(0).ToLower = "on" Then
+                            RaiseEvent EventBotToggleRefresh(True)
+                        ElseIf command.commandParamameter(0).ToLower = "off" Then
+                            RaiseEvent EventBotToggleRefresh(False)
+                        End If
+                    Else
+                        RaiseEvent EventBotResponse("-REFRESH [on | off]")
+                    End If
+                Case clsBotCommandClassifier.BotCommandType.HOLD    'MrJag|0.9b|hold|
+                    If command.commandParamameter.Length = 1 Then
+                        RaiseEvent EventBotHold(command.commandParamameter(0))
+                    Else
+                        RaiseEvent EventBotResponse("!HOLD [name]")
+                    End If
+            End Select
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+End Class
+Public Class clsBotCommandHostGame
+    Inherits clsBotCommand
+
+    Private callerName As String
+
+    Public Event EventBotResponse(ByVal msg As String)
+    Public Event EventBotLatency(ByVal ms As Integer)
+    Public Event EventBotKick(ByVal name As String, ByVal kicker As String)
+    Public Event EventBotGameCancel()
+    Public Event EventBotAbort()
+
+
+    Public Sub New(ByVal callerName As String, ByVal adminName As String())
+        MyBase.New(adminName)
+        Me.callerName = callerName
+    End Sub
+
+    Public Function ProcessCommand(ByVal user As String, ByVal msg As String) As Boolean
+        Dim command As clsBotCommandClassifier
+        Dim number As Integer
+        Dim target As String
+
+        Try
+            If IsTargeted(msg) = False OrElse user.Length = 0 Then
+                Return False
+            End If
+            command = New clsBotCommandClassifier(msg)
+            If user.ToLower <> callerName.ToLower AndAlso IsPrivileged(user, adminName) = False Then
+                Return False
+            End If
+
+            Select Case command.GetCommandType
+                Case clsBotCommandClassifier.BotCommandType.INVALID
+                Case clsBotCommandClassifier.BotCommandType.SAY
+                    RaiseEvent EventBotResponse(command.GetPayLoad)
+                Case clsBotCommandClassifier.BotCommandType.VERSION
+                    RaiseEvent EventBotResponse(frmLainEthLite.ProjectLainVersion)
+                Case clsBotCommandClassifier.BotCommandType.LATENCY
+                    If command.commandParamameter.Length >= 1 AndAlso IsNumeric(command.commandParamameter(0)) Then
+                        number = CType(command.commandParamameter(0), Integer)
+                        number = Math.Max(number, 50)
+                        number = Math.Min(number, 500)
+                        RaiseEvent EventBotLatency(number)
+                        Exit Select
+                    End If
+                    RaiseEvent EventBotLatency(0)
+                Case clsBotCommandClassifier.BotCommandType.KICK
+                    If command.commandParamameter.Length = 1 Then
+                        target = command.commandParamameter(0)
+                        If target.Trim.Length > 0 Then
+                            RaiseEvent EventBotKick(target, user)
+                            Exit Select
+                        End If
+                    End If
+                Case clsBotCommandClassifier.BotCommandType.GAMECANCEL
+                    RaiseEvent EventBotGameCancel()
+                Case clsBotCommandClassifier.BotCommandType.ABORT
+                    RaiseEvent EventBotAbort()
+            End Select
+
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+End Class
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'

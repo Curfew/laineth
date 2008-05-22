@@ -1,0 +1,1329 @@
+Option Explicit On 
+Option Strict On
+
+Imports System.Net
+Imports System.IO
+Imports System.Net.NetworkInformation
+Imports System.Threading
+Imports LainBnetCore
+Imports LainSocket
+Imports LainHelper
+
+#Region "map"
+Public Class clsGameHostMap
+    Private mapPath As String
+    Private mapSize As Byte()
+    Private mapInfo As Byte()
+    Private mapCRC As Byte()
+
+    Public Sub New()
+        Me.mapPath = ""
+        Me.mapSize = New Byte() {}
+        Me.mapInfo = New Byte() {}
+        Me.mapCRC = New Byte() {}
+    End Sub
+    Public Sub New(ByVal mapPath As String, ByVal mapSize As Byte(), ByVal mapInfo As Byte(), ByVal mapCRC As Byte())
+        Me.mapPath = mapPath
+        Me.mapSize = mapSize
+        Me.mapInfo = mapInfo
+        Me.mapCRC = mapCRC
+    End Sub
+
+    Public Function GetMapPath() As String
+        Return mapPath
+    End Function
+    Public Function GetMapSize() As Byte()
+        Return mapSize
+    End Function
+    Public Function GetMapInfo() As Byte()
+        Return mapInfo
+    End Function
+    Public Function GetMapCRC() As Byte()
+        Return mapCRC
+    End Function
+
+End Class
+#End Region
+
+Public Class clsGameHost
+
+    Private Const GAME_PRIVATE As Integer = 17  'MrJag|0.8c|gamestate| needed to test game states
+    Private Const GAME_PUBLIC As Integer = 16
+
+    Private Const TEAM_SENTINEL As Byte = 0
+    Private Const TEAM_SCOURGE As Byte = 1
+    Private Const TIME_GAME_EXPIRE_COUNTER As Integer = 60 * 2
+    Private sockServer As clsSocketTCPServer
+
+    Private hashClient As Hashtable     'Socket -> Arraylist
+    Private queuePacket As Queue
+    Private listAction As ArrayList
+    Private isGameLoaded As Boolean
+    Private isCountDownStarted As Boolean
+    Private totalFinishLoad As Integer
+    Private teamWon As Byte
+    Private timeLastLoad As Date
+
+    Private creationTime As Long                'MrJag|0.10|refresh| time game was created
+    Private enableRefresh As Boolean            'MrJag|0.10|refresh| toggle for refresh
+
+    Private gameState As Byte
+    Private hostName As String
+    Private callerName As String
+    Private gameName As String
+    Private gamePort As Integer
+    Private mapPath As String
+    Private mapSize As Byte()
+    Private mapInfo As Byte()
+    Private mapCRC As Byte()
+    Private bnet As clsBNET
+    Private timeGameExpire As Integer
+    Private spoofID As Integer
+    Private spoofSafe As ArrayList
+    Private listSentinelPlayer As ArrayList
+    Private listScourgePlayer As ArrayList
+    Private listReferee As ArrayList
+    Private reserveList As ArrayList
+
+
+    Private WithEvents protocol As clsProtocolHost
+    Private WithEvents actionTimer As Timers.Timer
+    Private WithEvents pingTimer As Timers.Timer
+    Private WithEvents engineTimer As Timers.Timer
+    Private WithEvents endTimer As Timers.Timer
+    Private WithEvents refreshTimer As Timers.Timer 'MrJag|0.10|refresh|
+
+    Private WithEvents botLobby As clsBotCommandHostLobby
+    Private WithEvents botGame As clsBotCommandHostGame
+
+    Public Event EventHostUncreate()
+    Public Event EventHostDisposed(ByVal host As clsGameHost, ByVal reason As String)
+    Public Event EventGameWon(ByVal callerName As String, ByVal gameName As String, ByVal sentinelPlayer() As String, ByVal scourgePlayer() As String, ByVal referee() As String, ByVal winner As String)
+
+    Public Sub New()
+        Me.gameState = 0
+        Me.hostName = ""
+        Me.callerName = ""
+        Me.gameName = ""
+        Me.gamePort = 0
+        Me.mapPath = ""
+        Me.mapSize = New Byte() {}
+        Me.mapInfo = New Byte() {}
+        Me.mapCRC = New Byte() {}
+        Me.bnet = New clsBNET
+        Me.timeGameExpire = 0
+        Me.isGameLoaded = False
+        Me.isCountDownStarted = False
+        Me.totalFinishLoad = 0
+        Me.teamWon = 0
+        Me.timeLastLoad = Now
+
+        Me.reserveList = New ArrayList
+
+        Me.creationTime = Environment.TickCount     'MrJag|0.10|refresh| initalize creation time
+        Me.enableRefresh = True                     'MrJag|0.10|refresh| toggle for refresh
+
+        sockServer = New clsSocketTCPServer
+        hashClient = New Hashtable
+        queuePacket = New Queue
+        listAction = New ArrayList
+        protocol = New clsProtocolHost(hostName, gameName)
+        botLobby = New clsBotCommandHostLobby("", New String() {})
+        botGame = New clsBotCommandHostGame("", New String() {})
+        spoofID = 0
+        spoofSafe = New ArrayList
+        listSentinelPlayer = New ArrayList
+        listScourgePlayer = New ArrayList
+        listReferee = New ArrayList
+        engineTimer = New Timers.Timer
+        pingTimer = New Timers.Timer
+        actionTimer = New Timers.Timer
+        endTimer = New Timers.Timer
+        refreshTimer = New Timers.Timer             'MrJag|0.8c|refresh|
+    End Sub
+    Public Sub New(ByVal adminName As String(), ByVal gameState As Byte, ByVal gameName As String, ByVal hostName As String, ByVal callerName As String, ByVal gamePort As Integer, ByVal mapPath As String, ByVal mapSize As Byte(), ByVal mapInfo As Byte(), ByVal mapCRC As Byte(), ByVal bnet As clsBNET)
+
+        Me.gameState = gameState
+        Me.hostName = hostName
+        Me.callerName = callerName
+        Me.gameName = gameName
+        Me.gamePort = gamePort
+        Me.mapPath = mapPath
+        Me.mapSize = mapSize
+        Me.mapInfo = mapInfo
+        Me.mapCRC = mapCRC
+        Me.bnet = bnet
+        Me.timeGameExpire = 0
+        Me.isGameLoaded = False
+        Me.isCountDownStarted = False
+        Me.totalFinishLoad = 0
+        Me.teamWon = 255
+        Me.timeLastLoad = Now
+
+        Me.reserveList = New ArrayList
+
+        Me.creationTime = Environment.TickCount     'MrJag|0.10|refresh| initalize creation time
+        Me.enableRefresh = True                     'MrJag|0.10|refresh| toggle for refresh
+
+        sockServer = New clsSocketTCPServer
+        hashClient = Hashtable.Synchronized(New Hashtable)
+        queuePacket = Queue.Synchronized(New Queue)
+        listAction = ArrayList.Synchronized(New ArrayList)
+        protocol = New clsProtocolHost(hostName, gameName)
+        botLobby = New clsBotCommandHostLobby(callerName, adminName)
+        botGame = New clsBotCommandHostGame(callerName, adminName)
+
+        spoofID = New Random(Environment.TickCount).Next(100, 1000)
+        spoofSafe = ArrayList.Synchronized(New ArrayList)
+        spoofSafe.Add(hostName)
+
+        listSentinelPlayer = ArrayList.Synchronized(New ArrayList)
+        listScourgePlayer = ArrayList.Synchronized(New ArrayList)
+        listReferee = ArrayList.Synchronized(New ArrayList)
+
+        engineTimer = New Timers.Timer
+        engineTimer.Interval = 1000
+
+        pingTimer = New Timers.Timer
+        pingTimer.Interval = 30 * 1000
+
+        actionTimer = New Timers.Timer
+        actionTimer.Interval = 100
+
+        endTimer = New Timers.Timer
+        endTimer.Interval = 10 * 1000
+
+        refreshTimer = New Timers.Timer                             'MrJag|0.8c|refresh|
+        refreshTimer.Interval = 15 * 1000   'MrJag|0.8c|refresh|every 10 seconds
+
+        AddHandler sockServer.eventMessage, AddressOf sockServer_OnEventMessage
+        AddHandler sockServer.eventError, AddressOf sockServer_OnEventError
+        AddHandler bnet.EventIncomingChat, AddressOf bnet_EventIncomingChat
+        AddHandler bnet.EventBnetSIDSTARTADVEX3Result, AddressOf bnet_EventBnetSIDSTARTADVEX3Result
+        AddHandler bnet.EventIncomingFriendList, AddressOf OnEventIncomingFriendList
+        AddHandler bnet.EventIncomingClanList, AddressOf OnEventIncomingClanList
+
+    End Sub
+    Public Function GetCallerName() As String
+        Return callerName
+    End Function
+    Public Function GetGameName() As String
+        Return gameName
+    End Function
+    Public Function GetHostName() As String
+        Return hostName
+    End Function
+    Public Function GetIsCountDownStarted() As Boolean
+        Return isCountDownStarted
+    End Function
+    Public Function GetIsGameLoaded() As Boolean
+        Return isGameLoaded
+    End Function
+    Public Function GetTotalPlayers() As Integer
+        Return protocol.GetPlayerCount(protocol.GetHostPID)
+    End Function
+    Public Function getUptime() As Long
+        Dim retVal As Long
+        retVal = CLng(Math.Round((Environment.TickCount - creationTime) / 1000))
+        'Debug.WriteLine(String.Format("uptime = {0}, now = {1}, created = {2}", retVal, Environment.TickCount, creationTime))
+        Return retVal
+    End Function
+
+#Region "sock event"
+    Private Sub sockServer_OnEventMessage(ByVal socketEvent As clsSocket.SocketEvent, ByVal socket As clsSocket)
+        Dim client As clsSocketTCPClient
+        Try
+            Select Case socketEvent
+                Case clsSocket.SocketEvent.ConnectionAccepted
+                    client = CType(socket, clsSocketTCPClient) 'New clsSocketTCPClient    'CType(socket, clsSocketTCPClient)
+                    AddHandler client.eventMessage, AddressOf client_OnEventMessage
+                    AddHandler client.eventError, AddressOf client_OnEventError
+
+                    hashClient.Add(client, ArrayList.Synchronized(New ArrayList))
+                    client_OnEventMessage(clsSocket.SocketEvent.DataArrival, client)  'force a data arrival event
+            End Select
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+
+    End Sub
+    Private Sub sockServer_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
+        HostStop()
+    End Sub
+    Private Sub client_OnEventMessage(ByVal socketEvent As clsSocket.SocketEvent, ByVal socket As clsSocket)
+        Dim dataQ As Queue
+        Dim client As clsSocketTCPClient
+        Dim mutexPackageGamePacket As Mutex
+        Dim mutexProcessAllPacket As Mutex
+        Try
+            client = CType(socket, clsSocketTCPClient)
+            Select Case socketEvent
+                Case clsSocket.SocketEvent.ConnectionClosedByPeer
+                    ClientStop(client)
+                Case clsSocket.SocketEvent.ConnectionFailed
+                    ClientStop(client)
+                Case clsSocket.SocketEvent.ConnectionEstablished
+                Case clsSocket.SocketEvent.DataArrival
+                    If hashClient.Contains(client) Then
+
+                        mutexPackageGamePacket = New Mutex(False, String.Format("mutex-PackageGamePacket-{0}", client.GetHashCode)) 'lock when same socket instance comes in
+                        mutexPackageGamePacket.WaitOne()
+                        dataQ = client.GetReceiveQueue
+                        Do Until dataQ.Count = 0
+                            CType(hashClient.Item(client), ArrayList).Add(dataQ.Dequeue())
+                        Loop
+                        PackageGamePacket(client)
+                        mutexPackageGamePacket.ReleaseMutex()
+
+                        mutexProcessAllPacket = New Mutex(False, String.Format("mutex-ProcessAllPacket-{0}", Me.GetHashCode)) 'lock when same class instance comes in
+                        mutexProcessAllPacket.WaitOne()
+                        ProcessAllPacket()
+                        mutexProcessAllPacket.ReleaseMutex()
+
+                    End If
+            End Select
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+
+    End Sub
+    Private Sub client_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
+        ClientStop(CType(socket, clsSocketTCPClient))
+    End Sub
+#End Region
+
+#Region "bot game event"
+    Private Sub botGame_EventBotResponse(ByVal msg As String) Handles botGame.EventBotResponse
+        SendChat(msg)
+    End Sub
+    Private Sub botGame_EventBotLatency(ByVal ms As Integer) Handles botGame.EventBotLatency
+        If ms > 0 Then
+            actionTimer.Interval = ms
+        End If
+        SendChat(String.Format("Latency Time = {0}, Quality <- - Latency + -> Performance", actionTimer.Interval))
+    End Sub
+
+    Private Sub botGame_EventBotKick(ByVal name As String, ByVal kicker As String) Handles botGame.EventBotKick
+        Dim player As clsHostPlayer
+
+        Try
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                If player.GetName.ToLower = name.ToLower Then
+                    ClientStop(player.GetSock)
+                    SendChat(String.Format("{0} was kicked out of game by {1}", name, kicker))
+                End If
+            Next
+        Catch ex As Exception
+        End Try
+    End Sub
+    Private Sub botGame_EventBotGameCancel() Handles botGame.EventBotGameCancel
+        If isGameLoaded = True AndAlso teamWon = 255 Then 'winner not yet set
+            teamWon = 10
+            AnnouceWinner(callerName, gameName, CType(listSentinelPlayer.ToArray(GetType(String)), String()), CType(listScourgePlayer.ToArray(GetType(String)), String()), CType(listReferee.ToArray(GetType(String)), String()), "canceled")
+            SendChat("Game is canceled")
+        Else
+            SendChat("Game can not be canceled or is too late to be canceled")
+        End If
+    End Sub
+
+    Private Sub botGame_EventBotAbort() Handles botGame.EventBotAbort
+        If endTimer.Enabled Then
+            endTimer.Enabled = False
+            SendChat("Game Auto-Shutdown Is Aborted")
+        End If
+    End Sub
+
+#End Region
+
+#Region "bot lobby event"
+
+    Private Sub OnEventIncomingClanList(ByVal eventClanList() As clsIncomingClanList)
+        'MrJag|0.8c|reserve|
+        For Each clanPlayer As clsIncomingClanList In eventClanList
+            If (reserveList.Contains(clanPlayer.GetName.ToLower)) Then
+                'do nothing
+            Else
+                reserveList.Add(clanPlayer.GetName.ToLower)
+            End If
+        Next
+    End Sub
+    Private Sub OnEventIncomingFriendList(ByVal eventFriendList() As clsIncomingFriendList)
+        'MrJag|0.8c|reserve|
+        For Each friendPlayer As clsIncomingFriendList In eventFriendList
+            'MsgBox(String.Format("{0} in my friend!", friendPlayer.GetAccount))
+            If (reserveList.Contains(friendPlayer.GetAccount.ToLower)) Then
+                'do nothing
+            Else
+                reserveList.Add(friendPlayer.GetAccount.ToLower)
+            End If
+        Next
+    End Sub
+    Private Sub bnet_EventBnetSIDSTARTADVEX3Result(ByVal isOK As Boolean)
+        If isOK Then
+            'SendChat("Game Listing Refresh Successful...")
+            SendChat("Game Refreshed...")
+        Else
+            'SendChat("Game Listing Refresh Failed...")
+            SendChat("Error refreshing the game...")
+        End If
+    End Sub
+    Private Sub bnet_EventIncomingChat(ByVal eventChat As LainBnetCore.clsIncomingChatChannel)
+        Dim playerName As String = ""       ' The player name parsed from the /whois
+        Dim PID As Byte = New Byte
+        'If eventChat.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_WHISPER AndAlso eventChat.GetMessage.Trim = Convert.ToString(spoofID) Then
+        If eventChat.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_WHISPER Then
+            If spoofSafe.Contains(eventChat.GetUser) = False Then
+                'SendChatLobby(String.Format("{0} is not safelisted yet.", eventChat.GetUser))
+                'MrJag|0.8c|antispoof|Adds the user to the safelist if they are in the current game.
+                If protocol.GetPlayerFromName(eventChat.GetUser).GetName = eventChat.GetUser Then 'check if we have a player in the game with that name
+                    spoofSafe.Add(eventChat.GetUser)
+                    'SendChatLobby(String.Format("Identification for {0} is accepted", eventChat.GetUser))
+                End If
+            Else
+                'MrJag|0.8c|commands|Runs commands if neccessary
+                If isCountDownStarted = False Then
+                    botLobby.ProcessCommand(eventChat.GetUser, eventChat.GetMessage)
+                ElseIf isGameLoaded Then
+                    botGame.ProcessCommand(eventChat.GetUser, eventChat.GetMessage)
+                End If
+            End If
+        ElseIf eventChat.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_INFO And gameState = GAME_PUBLIC Then
+            'MrJag|0.8c|antispoof|handles a battle.net info response to see if the player is in the game.
+            playerName = Split(eventChat.GetMessage)(0)     'grab the first word in the message as the player name.
+
+            If eventChat.GetMessage.Contains("is away") Then
+                'do nothing -- the user setup an away message
+            ElseIf eventChat.GetMessage.Contains("is unavailable") Then
+                'do nothing -- the user setup a ??? message
+            ElseIf eventChat.GetMessage.Contains("is refusing messages") Then
+                'do nothing -- the user setup a Do Not Disturb message
+            ElseIf eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in the channel") Then
+                SendChat(String.Format("Name spoof detected -- The real {0} is not in a game.", playerName))     'chat alert that the player spoofchecked
+            ElseIf eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in a private channel") Then
+                SendChat(String.Format("Name spoof detected -- The real {0} is in a private channel.", playerName))     'chat alert that the player spoofchecked
+            ElseIf eventChat.GetMessage.Contains(String.Format("is using Warcraft III The Frozen Throne in game", gameName)) Then
+                If eventChat.GetMessage.Contains(gameName) Then
+                    If protocol.GetPlayerFromName(playerName).GetName = playerName Then
+                        spoofSafe.Add(playerName)                           'add the player to the spoofcheck list
+                        'SendChatLobby(String.Format("{0} has passed the anti-spoof check.", playerName))     'chat alert that the player spoofchecked
+                        'MsgBox(String.Format("Adding {0} to the safe list.", playerName))
+                    End If
+                Else
+                    SendChat(String.Format("Name spoof detected -- The real {0} is in another game.", playerName))     'chat alert that the player spoofchecked
+                End If
+            ElseIf eventChat.GetMessage.Length = 0 Then
+                'do nothing -- the clan has a Message Of The Day setup for their channel.
+            Else
+                protocol.GetPlayerFromName(playerName).SpoofCheck()
+                AddHandler protocol.GetPlayerFromName(playerName).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
+                SendChat(String.Format("DEBUG: {0}:[{1}]", playerName, eventChat.GetMessage))   'debug code - replace with auto-kick later
+                'bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/w {0} I was unable to confirm your identity, '/r anything' to manually confirm.", playerName), hostName, False))
+                'bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/w MrJag antispoof debug: [{0}] [{1}]", playerName, eventChat.GetMessage), hostName, False))
+            End If
+        End If
+    End Sub
+
+    Private Sub botLobby_EventBotKick(ByVal name As String) Handles botLobby.EventBotKick
+        Dim player As clsHostPlayer
+
+        Try
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                If player.GetName.ToLower = name.ToLower Then
+                    ClientStop(player.GetSock)
+                End If
+            Next
+        Catch ex As Exception
+        End Try
+    End Sub
+    'MrJag|0.10|refresh|
+    Private Sub botLobby_EventBotToggleRefresh(ByVal enabled As Boolean) Handles botLobby.EventBotToggleRefresh
+        Try
+            If enabled Then
+                SendChat("Refresh enabled")
+                refreshTimer.Start()
+            Else
+                SendChat("Refresh disabled")
+                refreshTimer.Stop()
+            End If
+        Catch ex As Exception
+        End Try
+    End Sub
+    'MrJag|0.9b|hold|
+    Private Sub botLobby_EventBotHold(ByVal name As String) Handles botLobby.EventBotHold
+        Try
+            If (reserveList.Contains(name.ToLower)) Then
+                SendChat(String.Format("A reservation already exists for {0}", name))
+            Else
+                reserveList.Add(name.ToLower)
+                SendChat(String.Format("Adding a reservation for {0}", name))
+            End If
+        Catch ex As Exception
+        End Try
+    End Sub
+    Private Sub botLobby_EventBotSwap(ByVal slot1 As Byte, ByVal slot2 As Byte) Handles botLobby.EventBotSwap
+        If slot1 <> protocol.GetHostSID AndAlso slot2 <> protocol.GetHostSID Then
+            If protocol.SwapSlot(slot1, slot2) Then
+                SendSlotInfo()
+            End If
+        End If
+    End Sub
+    Private Sub botLobby_EventBotResponse(ByVal msg As String) Handles botLobby.EventBotResponse
+        SendChat(msg)
+    End Sub
+    Private Sub botLobby_EventBotSlot(ByVal open As Boolean, ByVal slotNumber As Byte) Handles botLobby.EventBotSlot
+        Dim player As clsHostPlayer
+
+        If slotNumber <> protocol.GetHostSID Then
+            player = protocol.GetPlayerFromSID(slotNumber)
+            If player.GetPID <> 255 Then
+                ClientStop(player.GetSock, open)
+            Else
+                protocol.SlotOpenClose(slotNumber, open)
+            End If
+            SendSlotInfo()
+        End If
+    End Sub
+    Private Sub botLobby_EventBotStart(ByVal isForced As Boolean) Handles botLobby.EventBotStart
+        GameStart(isForced)
+    End Sub
+    Private Sub botLobby_EventBotEnd() Handles botLobby.EventBotEnd
+        Dispose("Lobby Canceled")
+    End Sub
+    Private Sub botLobby_EventBotPing() Handles botLobby.EventBotPing
+        Dim icmp As Ping
+        Dim player As clsHostPlayer
+        Dim IP As String
+        Dim pingText As System.Text.StringBuilder
+        Try
+            SendChat(String.Format("Pinging... Please wait..."))
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                icmp = New Ping
+                AddHandler icmp.PingCompleted, AddressOf OnEventPingCompleted
+
+                IP = String.Format("{0}.{1}.{2}.{3}", player.GetExternalIP(0), player.GetExternalIP(1), player.GetExternalIP(2), player.GetExternalIP(3))
+                icmp.SendAsync(IP, 1000, player)
+            Next
+
+            Thread.Sleep(2000)
+
+            pingText = New System.Text.StringBuilder
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                If player.GetPing >= 0 Then
+                    pingText.Append(String.Format("{0}: ({1}), ", player.GetName, player.GetPing))
+                ElseIf player.GetPing = -1 Then
+                    pingText.Append(String.Format("{0}: (t/o), ", player.GetName))
+                End If
+            Next
+            SendChat(String.Format("{0}", pingText))
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+
+    End Sub
+    Private Sub OnEventPingCompleted(ByVal sender As Object, ByVal e As System.Net.NetworkInformation.PingCompletedEventArgs)
+        Dim result As PingReply
+        Dim player As clsHostPlayer
+        Try
+            result = e.Reply
+            player = CType(e.UserState, clsHostPlayer)
+
+            If result.Status = IPStatus.Success Then
+                player.SetPing(result.RoundtripTime)
+            Else
+                player.SetPing(-1)
+            End If
+            RemoveHandler CType(sender, Ping).PingCompleted, AddressOf OnEventPingCompleted
+            CType(sender, IDisposable).Dispose()
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+
+    End Sub
+
+    Private Sub OnEventMessage_SpoofCheck(ByVal name As String)
+        Try
+            Debug.WriteLine("sending whois")
+            bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/whois {0}", name), hostName, False))
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+
+    End Sub
+
+    Private Sub botLobby_EventBotCountry() Handles botLobby.EventBotCountry
+        Dim url As String
+        Dim IP As String
+        Dim player As clsHostPlayer
+        Dim request As HttpWebRequest
+        Dim response As HttpWebResponse
+        Dim reader As StreamReader
+        Dim html As String
+        Dim nameQ As Queue
+        Dim country As String
+        Dim countryText As System.Text.StringBuilder
+        Try
+            SendChat("Credit to wc3banlist.de, Checking IP Country...")
+            url = "http://www.wc3banlist.de/iptc.php?addr="
+            nameQ = New Queue
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                IP = String.Format("{0}.{1}.{2}.{3}", player.GetExternalIP(0), player.GetExternalIP(1), player.GetExternalIP(2), player.GetExternalIP(3))
+                url = url & IP & ";"
+                nameQ.Enqueue(player.GetName)
+            Next
+
+            request = CType(WebRequest.Create(url), HttpWebRequest)
+            request.UserAgent = "Mozilla/3.0 (compatible; Indy Library)"
+            response = CType(request.GetResponse(), HttpWebResponse)
+
+            reader = New StreamReader(response.GetResponseStream())
+            html = reader.ReadToEnd()
+            reader.Close()
+            response.Close()
+
+            countryText = New System.Text.StringBuilder
+            For Each country In html.Split(Convert.ToChar(";"))
+                If country.LastIndexOf(Convert.ToChar("(")) >= 0 AndAlso country.EndsWith(")") AndAlso nameQ.Count > 0 Then
+                    countryText.Append(String.Format("{0}: ({1}), ", CType(nameQ.Dequeue, String), country.Substring(country.LastIndexOf(Convert.ToChar("(")) + 1, 2)))
+                End If
+            Next
+
+            SendChat(String.Format("{0}", countryText))
+        Catch ex As Exception
+            Debug.Write(ex)
+        End Try
+    End Sub
+
+#End Region
+
+#Region "protocol event"
+    Private Sub protocol_EventHostChat(ByVal fromPID As Byte, ByVal toPIDs As Byte(), ByVal flag As Byte, ByVal flagextra As Byte(), ByVal msg As String) Handles protocol.EventHostChat
+        Dim PID As Byte
+        Dim name As String
+
+        If isCountDownStarted = False OrElse isGameLoaded = True Then
+            For Each PID In toPIDs
+                protocol.GetPlayerFromPID(PID).GetSock.Send(protocol.SEND_W3GS_CHAT_FROM_HOST(fromPID, toPIDs, flag, flagextra, msg))
+            Next
+        End If
+
+        name = protocol.GetPlayerFromPID(fromPID).GetName
+
+        If spoofSafe.Contains(name) Then
+            If isCountDownStarted = False Then
+                botLobby.ProcessCommand(name, msg)
+            ElseIf isGameLoaded Then
+                botGame.ProcessCommand(name, msg)
+            End If
+        Else
+            If msg.StartsWith("-") Then
+                SendChat(String.Format("Please Identify (Spoof Check) By Whispering [ /w {0} {1} ]", hostName, spoofID), fromPID)
+            End If
+        End If
+    End Sub
+    Private Sub protocol_EventHostTeam(ByVal fromPID As Byte, ByVal toPIDs As Byte(), ByVal flag As Byte, ByVal team As Byte) Handles protocol.EventHostTeam
+        If isCountDownStarted = False Then
+            If toPIDs.Length = 1 AndAlso toPIDs(0) = 255 AndAlso (protocol.PlayerTeamChange(fromPID, team)) Then
+                SendSlotInfo()
+            End If
+        End If
+    End Sub
+    Private Sub protocol_EventAction(ByVal fromPID As Byte, ByVal actionCRC As Byte(), ByVal actionData As Byte()) Handles protocol.EventAction
+        Dim packet As ArrayList
+        Dim buffer As Byte()
+        Dim team As Byte
+        Dim i As Integer
+        Dim currentByte As Byte
+        Dim list As ArrayList
+        Dim text As String
+
+        Try
+            packet = New ArrayList
+            clsHelper.AddByteArray(packet, New Byte() {fromPID})
+            clsHelper.AddByteArray(packet, clsHelper.IntegerToWORD(actionData.Length, False))  'length
+            clsHelper.AddByteArray(packet, actionData)
+            buffer = CType(packet.ToArray(GetType(Byte)), Byte())
+            listAction.Add(buffer)
+
+
+            If buffer.Length >= 3 AndAlso buffer(3) = 107 Then
+                'Debug.WriteLine(clsHelper.PrintArray(buffer))
+                'Debug.WriteLine(clsHelper.PrintArray(buffer, clsHelper.PrintType.ASCII))
+
+                list = New ArrayList
+                i = buffer.Length - 1 - 5
+                Do
+                    currentByte = buffer(i)
+                    list.Add(currentByte)
+                    i = i - 1
+                    If currentByte = 0 Then
+                        list.Reverse()
+                        text = clsHelper.ByteArrayToStringASCII(CType(list.ToArray(GetType(Byte)), Byte()))
+                        Exit Do
+                    End If
+                Loop
+                team = buffer(buffer.Length - 1 - 3)
+                If isGameLoaded = True AndAlso teamWon = 255 Then 'winner not yet set
+                    teamWon = CType(team - 1, Byte)
+                    SendChat(String.Format("{0} Has Won The Game ! Tree/Throne Down [{1}]", GetTeamName(teamWon), protocol.GetPlayerFromPID(fromPID).GetName))
+                    AnnouceWinner(callerName, gameName, CType(listSentinelPlayer.ToArray(GetType(String)), String()), CType(listScourgePlayer.ToArray(GetType(String)), String()), CType(listReferee.ToArray(GetType(String)), String()), GetTeamName(teamWon))
+                End If
+
+            End If
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+    End Sub
+
+#End Region
+
+#Region "timers"
+    Private Sub engineTimer_Elapsed(ByVal sender As Object, ByVal e As System.Timers.ElapsedEventArgs) Handles engineTimer.Elapsed
+        Static isRunning As Boolean = False
+
+        Try
+            If isRunning = False Then
+                isRunning = True
+
+                timeGameExpire = timeGameExpire + 1
+                If timeGameExpire Mod TIME_GAME_EXPIRE_COUNTER = 0 Then
+
+                    If isGameLoaded = True AndAlso teamWon = 255 Then 'winner not yet set
+                        If protocol.GetPlayerCountTeam(TEAM_SENTINEL) = 0 AndAlso protocol.GetPlayerCountTeam(TEAM_SCOURGE) > 0 Then
+                            teamWon = TEAM_SCOURGE
+                            SendChat(String.Format("{0} has won the game !", GetTeamName(teamWon)))
+                            AnnouceWinner(callerName, gameName, CType(listSentinelPlayer.ToArray(GetType(String)), String()), CType(listScourgePlayer.ToArray(GetType(String)), String()), CType(listReferee.ToArray(GetType(String)), String()), GetTeamName(teamWon))
+                        ElseIf protocol.GetPlayerCountTeam(TEAM_SCOURGE) = 0 AndAlso protocol.GetPlayerCountTeam(TEAM_SENTINEL) > 0 Then
+                            teamWon = TEAM_SENTINEL
+                            SendChat(String.Format("{0} has won the game !", GetTeamName(teamWon)))
+                            AnnouceWinner(callerName, gameName, CType(listSentinelPlayer.ToArray(GetType(String)), String()), CType(listScourgePlayer.ToArray(GetType(String)), String()), CType(listReferee.ToArray(GetType(String)), String()), GetTeamName(teamWon))
+                        ElseIf protocol.GetPlayerCountTeam(TEAM_SCOURGE) = 0 AndAlso protocol.GetPlayerCountTeam(TEAM_SENTINEL) = 0 Then
+                            teamWon = 10
+                            SendChat("No one remain in game")
+                            AnnouceWinner(callerName, gameName, CType(listSentinelPlayer.ToArray(GetType(String)), String()), CType(listScourgePlayer.ToArray(GetType(String)), String()), CType(listReferee.ToArray(GetType(String)), String()), "none")
+                        End If
+                    End If
+
+                    If protocol.GetPlayerCount(protocol.GetHostPID) = 0 Then
+                        Dispose("No Player Remain")
+                    End If
+                End If
+
+                isRunning = False
+            End If
+        Catch ex As Exception
+        End Try
+    End Sub
+    Private Sub actionTimer_Elapsed(ByVal sender As Object, ByVal e As System.Timers.ElapsedEventArgs) Handles actionTimer.Elapsed
+        Static timeInterval As Integer = CType(Environment.TickCount - actionTimer.Interval, Integer)
+        Static isRunning As Boolean = False
+        Dim packet As ArrayList
+        Dim action As Byte()
+        Dim buffer As Byte()
+        Try
+            If isRunning = False Then
+                isRunning = True
+
+                packet = New ArrayList
+
+                Do Until listAction.Count = 0
+                    action = CType(listAction.Item(0), Byte())
+                    listAction.RemoveAt(0)
+                    packet.Add(action)
+                Loop
+
+
+                buffer = protocol.SEND_W3GS_INCOMING_ACTION(CType(packet.ToArray(GetType(Byte())), Byte()()), CType(Environment.TickCount - timeInterval, Integer))
+                'Debug.WriteLine(String.Format("{0} - {1}", Environment.TickCount - timeInterval, clsHelper.PrintArray(buffer)))
+
+                timeInterval = Environment.TickCount
+                SendAllClient(buffer)
+
+                isRunning = False
+            End If
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+    End Sub
+    Private Sub pingTimer_Elapsed(ByVal sender As Object, ByVal e As System.Timers.ElapsedEventArgs) Handles pingTimer.Elapsed
+        Static isRunning As Boolean = False
+        Try
+            If isRunning = False Then
+                isRunning = True
+
+                SendAllClient(protocol.SEND_W3GS_PING_FROM_HOST())
+
+                isRunning = False
+            End If
+        Catch ex As Exception
+        End Try
+    End Sub
+    Private Sub endTimer_Elapsed(ByVal sender As Object, ByVal e As System.Timers.ElapsedEventArgs) Handles endTimer.Elapsed
+        Static isRunning As Boolean = False
+        Static timeRemain As Integer = 10
+        Try
+            If isRunning = False Then
+                isRunning = True
+
+                timeRemain = timeRemain - 1
+                SendChat(String.Format("Game Shut Down in {0} seconds", timeRemain * 10))
+
+                If timeRemain = 0 Then
+                    Dispose("Shutdown Counter Reached 0")
+                End If
+
+                isRunning = False
+            End If
+        Catch ex As Exception
+        End Try
+    End Sub
+    'MrJag|0.10|refresh|
+    Private Sub refreshTimer_Elapsed() Handles refreshTimer.Elapsed
+        Static isRunning As Boolean = False
+        Try
+            If isRunning = False Then
+                isRunning = True
+                bnet.GameRefresh(gameState, gameName, hostName, (10 - protocol.GetPlayerCount), getUptime, mapPath, mapCRC)
+                'If enableRefresh = True Then
+                'SendChat(String.Format("Refreshed [{0}].", gameName))
+                'End If
+                isRunning = False
+            End If
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+    End Sub
+#End Region
+
+
+    Private Sub ProcessAllPacket()
+        Dim command As clsCommandPacket
+        Dim PID As Byte
+        Dim SID As Byte 'MrJag|0.8c|reserve|used to save the slot ID of the player to kick
+        Dim player As clsHostPlayer
+
+        Try
+            While queuePacket.Count > 0
+                command = CType(queuePacket.Dequeue, clsCommandPacket)
+                If command.GetPacketCommandType = clsCommandPacket.PacketType.CustomGame Then
+                    Select Case command.GetPacketID
+                        Case clsProtocolHost.Protocol.W3GS_GAMELOADED_SELF
+                            player = protocol.GetPlayerFromSocket(command.GetPacketSocket())
+                            If player.GetPID <> 255 Then
+                                SendAllClient(protocol.SEND_W3GS_GAMELOADED_OTHERS(player.GetPID))
+                                totalFinishLoad = totalFinishLoad + 1
+
+                                'Debug.WriteLine(totalFinishLoad & " : " & protocol.GetPlayerCount(protocol.GetHostPID))
+                                Debug.WriteLine(String.Format("[{0}/{1}] {2} finished loading in {3} seconds", totalFinishLoad, (protocol.GetPlayerCount + 1), player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
+                                If totalFinishLoad = 1 Then
+                                    SendChat(String.Format("Fastest Load By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
+                                End If
+
+                                If totalFinishLoad >= protocol.GetPlayerCount Then
+                                    isGameLoaded = True
+                                    pingTimer.Stop()
+                                    actionTimer.Start()
+                                    refreshTimer.Stop()
+
+                                    'SendChatGame(String.Format("Hi Welcome to Dota {0} Hosting Service", frmLainEthLite.ProjectLainName))
+                                    'SendChat(String.Format("{0} Host - created by Leax", frmLainEthLite.ProjectLainVersion))
+                                    'SendChat(String.Format("Visit http://lainbot.tk for more info"))
+                                    SendChat(String.Format("Map Loaded Last By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
+
+                                End If
+                            End If
+                        Case clsProtocolHost.Protocol.W3GS_CHAT_TO_HOST
+                            If protocol.RECEIVE_W3GS_CHAT_TO_HOST(command.GetPacketData) = False Then
+                                Debug.WriteLine("FAILED RECEIVE_W3GS_CHAT_TO_HOST")
+                            End If
+                        Case clsProtocolHost.Protocol.W3GS_PONG_TO_HOST
+                            protocol.RECEIVE_W3GS_PONG_TO_HOST(command.GetPacketData)
+                        Case clsProtocolHost.Protocol.W3GS_LEAVEGAME
+                            If protocol.RECEIVE_W3GS_LEAVEGAME(command.GetPacketData) Then
+                                Debug.WriteLine(protocol.GetPlayerFromSocket(command.GetPacketSocket()).GetName & " left voluntarily")
+
+                                If isGameLoaded Then
+                                    SendChat(String.Format("{0} has Left the game", protocol.GetPlayerFromSocket(command.GetPacketSocket()).GetName))
+                                End If
+                                ClientStop(command.GetPacketSocket())
+                            End If
+                        Case clsProtocolHost.Protocol.W3GS_REQJOIN
+                            Dim playerCount As Integer = protocol.GetPlayerCount
+
+                            player = protocol.RECEIVE_W3GS_REQJOIN(command.GetPacketData, command.GetPacketSocket())
+                            If player.GetName().Length > 0 Then
+                                'MrJag|0.8c|reserve|check to see if the player is on the reserve list
+                                If (reserveList.Contains(player.GetName.ToLower)) Then
+                                    SendChat(String.Format("{0} has VIP status and is trying to join this game.", player.GetName))
+                                    SID = protocol.GetReserveSlot(reserveList)
+                                    If SID <> 255 Then
+                                        botLobby_EventBotSlot(True, SID)  'kick the non reserved player so the reserved player can join.
+                                    End If
+                                End If
+
+                                Debug.WriteLine(String.Format("{0} is trying to join the game.", player.GetName))
+                                If player.GetName().ToLower = callerName.ToLower AndAlso protocol.GetEmptySlot = 255 Then
+                                    Debug.WriteLine(String.Format("Host-player({0}) is trying to join the game and all slots are full.", player.GetName))
+                                    botLobby_EventBotSlot(True, 0)  'the player trying to join is the host-player and all slots are full, empty a slot.
+                                    Debug.WriteLine(String.Format("Kicking a player.", player.GetName))
+                                End If
+
+                                PID = protocol.PlayerAdd(player.GetName(), player.GetSock, player.GetExternalIP, player.GetInternalIP)
+                                If PID <> 255 Then
+                                    Debug.WriteLine(String.Format("Adding spoofcheck handler for {0}", player.GetName))
+                                    AddHandler protocol.GetPlayerFromSocket(command.GetPacketSocket()).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
+
+                                    Debug.WriteLine(String.Format("Player:{0} PID:{1} SID:{5} Internal:{2} External:{3} PlayerNumExclusive:{4} ", player.GetName, PID, clsHelper.PrintArray(player.GetInternalIP), clsHelper.PrintArray(player.GetExternalIP), playerCount, protocol.GetPlayerSlot(PID).GetSID))
+                                    'Debug.WriteLine(player.GetName() & " : " & PID & " " & clsHelper.PrintArray(player.GetInternalIP) & " " & clsHelper.PrintArray(player.GetExternalIP))
+                                    command.GetPacketSocket().Send(protocol.SEND_W3GS_SLOTINFOJOIN(PID, protocol.GetSlotInfo))
+
+                                    For Each player In protocol.GetPlayerList(PID)
+                                        player.GetSock.Send(protocol.SEND_W3GS_PLAYERINFO(PID)) 'send all other player about this new player
+                                        command.GetPacketSocket().Send(protocol.SEND_W3GS_PLAYERINFO(player.GetPID))      'send this new player about other players
+                                    Next
+
+                                    command.GetPacketSocket().Send(protocol.SEND_W3GS_MAPCHECK(mapPath, mapSize, mapInfo, mapCRC))
+                                    SendSlotInfo()
+
+                                    'SendChatLobby(String.Format("Hi Welcome to Dota {0} Hosting Service", frmLainEthLite.ProjectLainName), PID)
+                                    SendChat(" ", PID)
+                                    SendChat(" ", PID)
+                                    SendChat(" ", PID)
+                                    SendChat(" ", PID)
+                                    SendChat(" ", PID)
+                                    SendChat("DotA Hosting Service                                                         http://dhb.zor.org", PID)
+                                    SendChat("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-", PID)
+                                    SendChat(String.Format("          Game Name:    {0}", gameName), PID)
+                                    Exit Select
+
+
+
+
+                                End If
+                            End If
+                            ClientStop(command.GetPacketSocket())
+                        Case clsProtocolHost.Protocol.W3GS_MAPSIZE
+                            If protocol.RECEIVE_W3GS_MAPSIZE(command.GetPacketData, mapSize) Then
+                                SendSlotInfo()
+                            Else
+                                SendChat(String.Format("{0} need to download the map to play in this game", protocol.GetPlayerFromSocket(command.GetPacketSocket()).GetName))
+                                ClientStop(command.GetPacketSocket())
+                            End If
+                        Case clsProtocolHost.Protocol.W3GS_OUTGOING_KEEPALIVE
+                            If protocol.RECEIVE_W3GS_OUTGOING_KEEPALIVE(command.GetPacketData) = False Then
+                                Debug.WriteLine("FAILED W3GS_OUTGOING_KEEPALIVE")
+                            End If
+                        Case clsProtocolHost.Protocol.W3GS_OUTGOING_ACTION
+                            If protocol.RECEIVE_W3GS_OUTGOING_ACTION(command.GetPacketData, protocol.GetPlayerFromSocket(command.GetPacketSocket()).GetPID) = False Then
+                                Debug.WriteLine("FAILED W3GS_OUTGOING_ACTION")
+                            End If
+                        Case Else
+                            Debug.WriteLine("W3GS : " & command.GetPacketID)
+                            Debug.WriteLine(clsHelper.PrintArray(command.GetPacketData, clsHelper.PrintType.HEX))
+                            Debug.WriteLine(clsHelper.PrintArray(command.GetPacketData, clsHelper.PrintType.ASCII))
+                    End Select
+                End If
+            End While
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+    End Sub
+    Private Sub PackageGamePacket(ByVal client As clsSocketTCPClient)
+
+        Dim length As Integer
+        Dim listPacket As ArrayList
+        Dim i As Integer
+        Dim data As Byte()
+        Dim listDataBuffer As ArrayList
+
+        Try
+            If hashClient.Contains(client) Then
+                listDataBuffer = CType(hashClient.Item(client), ArrayList)
+
+                While listDataBuffer.Count >= 4
+                    If CByte(listDataBuffer.Item(0)) = 247 Then
+                        length = CType(clsHelper.ByteArrayToLong(New Byte() {CByte(listDataBuffer.Item(2)), CByte(listDataBuffer.Item(3))}), Integer)
+                        If listDataBuffer.Count >= length Then
+                            listPacket = New ArrayList
+                            For i = 1 To length
+                                listPacket.Add(listDataBuffer.Item(0))
+                                listDataBuffer.RemoveAt(0)
+                            Next
+                            data = CType(listPacket.ToArray(GetType(Byte)), Byte())
+                            queuePacket.Enqueue(New clsCommandPacket(clsCommandPacket.PacketType.CustomGame, data(1), data, client))
+                        Else
+                            Exit While
+                        End If
+                    Else
+                        ClientStop(client)
+                        Exit While
+                    End If
+
+                End While
+            End If
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+        End Try
+    End Sub
+
+
+    Private Function AnnouceWinner(ByVal callerName As String, ByVal gameName As String, ByVal sentinelPlayer() As String, ByVal scourgePlayer() As String, ByVal referee() As String, ByVal winner As String) As Boolean
+        RaiseEvent EventGameWon(callerName, gameName, sentinelPlayer, scourgePlayer, referee, winner)
+        'SendChat("Game has officially ended, a Game Shut Down will be initialised, Please make your leave or use -ABORT to abort")
+        SendChat("To report a bug or for more information on Dota Host Bot, visit http://dhb.zor.org")
+        SendChat("Credits: Leax, Netrunner, MrJag, and everyone else on the forums that gave support.")
+        SendChat("Test1|nTest2|rTest3|cFF0044BBTest4    Test5" + Environment.NewLine + "Test6")
+        endTimer.Start()
+    End Function
+
+    Private Function SendAllClient(ByVal data As Byte()) As Boolean
+        Dim player As clsHostPlayer
+        Try
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                player.GetSock.Send(data)
+
+                If player.GetSock.GetReceiveQueue.Count > 1 Then
+                    Debug.WriteLine(String.Format("lag:[{0}->host][{1}]", player.GetName, player.GetSock.GetReceiveQueue.Count))
+                End If
+                If player.GetSock.GetSendQueue.Count > 1 Then
+                    Debug.WriteLine(String.Format("lag:[host->{0}][{1}]", player.GetName, player.GetSock.GetSendQueue.Count))
+                End If
+            Next
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+    Private Function SendSlotInfo() As Boolean
+        Try
+            If isCountDownStarted = False Then
+                Return SendAllClient(protocol.SEND_W3GS_SLOTINFO) 'send everyone new slot info
+            End If
+            Return False
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+
+    Private Function SendChat(ByVal msg As String, ByVal PID As Byte) As Boolean
+        If isCountDownStarted = False Then
+            If msg.Length > 220 Then
+                msg = msg.Substring(0, 220)
+            End If
+            Return protocol.GetPlayerFromPID(PID).GetSock.Send(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), New Byte() {PID}, 16, New Byte() {}, msg))
+        ElseIf isGameLoaded Then
+            If msg.Length > 120 Then
+                msg = msg.Substring(0, 120)
+            End If
+            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), New Byte() {PID}, 32, New Byte() {0, 0, 0, 0}, msg))
+        Else
+            Return False
+        End If
+    End Function
+    Private Function SendChat(ByVal msg As String) As Boolean
+        If isCountDownStarted = False Then
+            If msg.Length > 220 Then
+                msg = msg.Substring(0, 220)
+            End If
+            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), protocol.GetPIDList(protocol.GetHostPID), 16, New Byte() {}, msg))
+        ElseIf isGameLoaded Then
+            If msg.Length > 120 Then
+                msg = msg.Substring(0, 120)
+            End If
+            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), protocol.GetPIDList(protocol.GetHostPID), 32, New Byte() {0, 0, 0, 0}, msg))
+        Else
+            Return False
+        End If
+    End Function
+
+
+    Private Function GetTeamName(ByVal team As Byte) As String
+        Select Case team
+            Case Is = 0 : Return "Sentinel"
+            Case Is = 1 : Return "Scourge"
+            Case Else : Return "Team:" & CType(team, String)
+        End Select
+    End Function
+    Private Function GameStart(ByVal isForced As Boolean) As Boolean
+        Static runOnce As Boolean = False
+        Dim player As clsHostPlayer
+        Dim unsafes As System.Text.StringBuilder
+        Dim slot As clsHostSlot
+        Try
+            If runOnce = False Then
+
+                If isForced = False Then    'is not forced then must pass spoof check and balance team
+                    unsafes = New System.Text.StringBuilder
+                    For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                        If spoofSafe.Contains(player.GetName) = False Then
+                            unsafes.Append(String.Format("{0}, ", player.GetName))
+                        End If
+                    Next
+
+                    If unsafes.Length > 0 Then
+                        SendChat(String.Format("Players Require Identification: {0}", unsafes.ToString))
+                        SendChat(String.Format("Please Identify (Spoof Check) By Whispering [ /w {0} {1} ]", hostName, spoofID))
+                        Return False
+                    End If
+
+                    If protocol.GetPlayerCountTeam(TEAM_SENTINEL) = 0 OrElse protocol.GetPlayerCountTeam(TEAM_SCOURGE) = 0 Then
+                        SendChat("Sentinel and Scourge need at least 1 player each")
+                        Return False
+                    End If
+                End If
+
+                runOnce = True
+
+                For Each slot In protocol.GetSlotList
+                    If slot.GetPID <> 0 AndAlso slot.GetPID <> 255 Then
+                        player = protocol.GetPlayerFromPID(slot.GetPID)
+                        If player.GetName.Length > 0 AndAlso spoofSafe.Contains(player.GetName) Then
+
+                            If slot.GetTeam = 0 Then
+                                listSentinelPlayer.Add(player.GetName)
+                            ElseIf slot.GetTeam = 1 Then
+                                listScourgePlayer.Add(player.GetName)
+                            Else
+                                listReferee.Add(player.GetName)
+                            End If
+                        End If
+                    End If
+                Next
+
+                UnCreate()
+                HostStop()
+
+
+                isCountDownStarted = True
+                SendAllClient(protocol.SEND_W3GS_COUNTDOWN_START)
+                'insert delay here for countdown.
+                protocol.RemoveHost()
+                SendAllClient(protocol.SEND_W3GS_COUNTDOWN_END)
+
+                'SendAllClient(protocol.SEND_W3GS_GAMELOADED_OTHERS(protocol.GetHostPID))
+                timeLastLoad = Now
+
+                Return True
+            End If
+            Return False
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+    Private Function ClientStop(ByVal clients As clsSocketTCPClient()) As Boolean
+        Dim name As String
+        Dim client As clsSocketTCPClient
+        Dim PID As Byte
+        Dim list As ArrayList
+
+        Try
+            list = New ArrayList
+
+            For Each client In clients
+                name = protocol.GetPlayerFromSocket(client).GetName
+                If spoofSafe.Contains(name) AndAlso name <> hostName Then
+                    spoofSafe.Remove(name)
+                End If
+
+                PID = protocol.PlayerRemove(client, True)
+                If PID <> 255 Then
+                    list.Add(PID)
+                End If
+
+                hashClient.Remove(client)
+                client.Dispose()
+                RemoveHandler client.eventMessage, AddressOf client_OnEventMessage
+                RemoveHandler client.eventError, AddressOf client_OnEventError
+                RemoveHandler protocol.GetPlayerFromSocket(client).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
+            Next
+
+            For Each PID In CType(list.ToArray(GetType(Byte)), Byte())
+                SendAllClient(protocol.SEND_W3GS_PLAYERLEAVE_OTHERS(PID))
+            Next
+            SendSlotInfo()
+
+            If isCountDownStarted = False Then
+                timeGameExpire = TIME_GAME_EXPIRE_COUNTER - 60 'check 1 minutes afer
+            ElseIf isGameLoaded Then
+                timeGameExpire = TIME_GAME_EXPIRE_COUNTER - 1      'check 1 sec after
+            End If
+
+            Return True
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+            Return False
+        End Try
+
+    End Function
+    Private Function ClientStop(ByVal client As clsSocketTCPClient) As Boolean
+        Return ClientStop(client, True)
+    End Function
+    Private Function ClientStop(ByVal client As clsSocketTCPClient, ByVal slotOpen As Boolean) As Boolean
+        Dim PID As Byte
+        Dim player As clsHostPlayer
+        Dim name As String
+        Try
+            name = protocol.GetPlayerFromSocket(client).GetName
+            If spoofSafe.Contains(name) AndAlso name <> hostName Then
+                spoofSafe.Remove(name)
+            End If
+
+            PID = protocol.PlayerRemove(client, slotOpen)
+            If PID <> 255 Then
+                For Each player In protocol.GetPlayerList(PID)
+                    player.GetSock.Send(protocol.SEND_W3GS_PLAYERLEAVE_OTHERS(PID))
+                Next
+                SendSlotInfo()
+            End If
+
+            hashClient.Remove(client)
+            client.Dispose()
+            RemoveHandler client.eventMessage, AddressOf client_OnEventMessage
+            RemoveHandler client.eventError, AddressOf client_OnEventError
+            RemoveHandler protocol.GetPlayerFromSocket(client).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
+
+            If isCountDownStarted = False Then
+                timeGameExpire = TIME_GAME_EXPIRE_COUNTER - 60 'check 1 minutes afer
+            ElseIf isGameLoaded Then
+                timeGameExpire = TIME_GAME_EXPIRE_COUNTER - 1      'check 1 sec after
+            End If
+
+            Return True
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+            Return False
+        End Try
+
+    End Function
+
+
+    Public Function HostStop() As Boolean
+        Try
+            sockServer.Dispose()
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+    Public Function HostStart() As Boolean
+        Try
+            If sockServer.Listen(gamePort) Then
+                engineTimer.Start()
+                pingTimer.Start()
+                If enableRefresh Then
+                    refreshTimer.Start() 'MrJag|0.8c|refresh|start the timer
+                End If
+                Return True
+            End If
+            Return False
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
+
+    Public Function UnCreate() As Boolean
+        refreshTimer.Stop() 'MrJag|0.10|refresh| stop the timer
+        RemoveHandler bnet.EventBnetSIDSTARTADVEX3Result, AddressOf bnet_EventBnetSIDSTARTADVEX3Result
+        RaiseEvent EventHostUncreate()
+    End Function
+    Public Function Dispose(ByVal reason As String) As Boolean
+        Dim client As clsSocketTCPClient
+        Dim list As ArrayList
+        Try
+            Debug.WriteLine("DISPOSED : " & reason)
+
+            HostStop()
+
+            If isCountDownStarted = False Then
+                UnCreate()
+            End If
+
+            list = New ArrayList
+            SyncLock hashClient.SyncRoot
+                For Each client In hashClient.Keys
+                    list.Add(client)
+                Next
+            End SyncLock
+
+            ClientStop(CType(list.ToArray(GetType(clsSocketTCPClient)), clsSocketTCPClient()))
+
+            engineTimer.Stop()
+            pingTimer.Stop()
+            actionTimer.Stop()
+            endTimer.Stop()
+            refreshTimer.Stop() 'MrJag|0.10|refresh| stop the timer
+
+            RemoveHandler sockServer.eventMessage, AddressOf sockServer_OnEventMessage
+            RemoveHandler sockServer.eventError, AddressOf sockServer_OnEventError
+            RemoveHandler bnet.EventIncomingChat, AddressOf bnet_EventIncomingChat
+            RemoveHandler bnet.EventBnetSIDSTARTADVEX3Result, AddressOf bnet_EventBnetSIDSTARTADVEX3Result
+
+            RaiseEvent EventHostDisposed(Me, reason)
+            Return True
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+            Return False
+        End Try
+
+    End Function
+
+    Public Function SendMessage(ByVal name As String, ByVal msg As String) As Integer
+        Dim player As clsHostPlayer
+        Dim total As Integer
+
+        Try
+            total = 0
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                If player.GetName.ToLower = name.ToLower Then
+                    SendChat(msg, player.GetPID)
+                    total = total + 1
+                End If
+            Next
+            Return total
+        Catch ex As Exception
+            Return 0
+        End Try
+    End Function
+    Public Function SendMessage(ByVal msg As String) As Integer
+        Dim player As clsHostPlayer
+        Dim total As Integer
+
+        Try
+            total = 0
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                SendChat(msg, player.GetPID)
+                total = total + 1
+            Next
+            Return total
+        Catch ex As Exception
+            Return 0
+        End Try
+    End Function
+
+End Class
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'
