@@ -339,15 +339,23 @@ Public Class clsProtocolBNET
     End Sub
 
 #Region "game stat string"
-    Public Function CreateStatString(ByVal hostName As String, ByVal mapPath As String, ByVal mapCRC As Byte()) As Byte()
+    Public Function CreateStatString(ByVal numPlayers As Integer, ByVal hostName As String, ByVal mapPath As String, ByVal mapCRC As Byte()) As Byte()
         Dim data As ArrayList
         Try
             If mapPath.Length > 0 AndAlso hostName.Length > 0 AndAlso mapCRC.Length = 4 Then
                 data = New ArrayList
-                clsHelper.AddByteArray(data, New Byte() {2, 72, 6, 64, 0, 116, 0, 116, 0})
+                'MrJag|0.8c|observer| changing the 4th byte, 64, to 0 removes the custom game view from the map listing
+
+                Debug.WriteLine(String.Format("numPlayers = {0}", numPlayers))
+                If numPlayers = 10 Then
+                    clsHelper.AddByteArray(data, New Byte() {2, 72, 6, 0, 0, 116, 0, 116, 0})
+                Else
+                    clsHelper.AddByteArray(data, New Byte() {2, 72, 6, 64, 0, 116, 0, 116, 0})
+                End If
+
                 clsHelper.AddByteArray(data, mapCRC)
                 clsHelper.AddByteArray(data, mapPath) 'Maps\Download\DotA Allstars v6.48b.w3x
-                clsHelper.AddByteArray(data, hostName)  'leax
+                clsHelper.AddByteArray(data, hostName)
                 clsHelper.AddByteArray(data, New Byte() {0})
                 Return EncodeStatString(CType(data.ToArray(GetType(Byte)), Byte()))
             End If
@@ -1283,7 +1291,7 @@ Public Class clsProtocolBNET
             Return New Byte() {}
         End Try
     End Function
-    Public Function SEND_SID_STARTADVEX3(ByVal state As Byte, ByVal gameName As String, ByVal hostName As String, ByVal upTime As Long, ByVal mapPath As String, ByVal mapCRC As Byte()) As Byte()
+    Public Function SEND_SID_STARTADVEX3(ByVal state As Byte, ByVal numPlayers As Integer, ByVal gameName As String, ByVal hostName As String, ByVal upTime As Long, ByVal mapPath As String, ByVal mapCRC As Byte()) As Byte()
         Dim packet As ArrayList
         Dim buffer As Byte()
         Try
@@ -1296,14 +1304,26 @@ Public Class clsProtocolBNET
             'state 16=public 17=private 18=close 
             clsHelper.AddByteArray(packet, New Byte() {state, 0, 0, 0})             'game state
             clsHelper.AddByteArray(packet, clsHelper.LongToDWORD(upTime, False))       'Time since creation
-            clsHelper.AddByteArray(packet, New Byte() {1, 32, 25, 0})       'Game Type, Parameter
+
+            clsHelper.AddByteArray(packet, New Byte() {1, 32, 73, 0})       'Game Type, Parameter 
+            'clsHelper.AddByteArray(packet, New Byte() {1, 32, 25, 0})       'Game Type, Parameter
+
             clsHelper.AddByteArray(packet, New Byte() {255, 3, 0, 0})       'Unknown 
             clsHelper.AddByteArray(packet, New Byte() {0, 0, 0, 0})         'custom game
             clsHelper.AddByteArray(packet, gameName)                        'game name
             clsHelper.AddByteArray(packet, New Byte() {0})                  'game password
+
+            'this is hardcoded for now, eventually replace with new numPlayers variable
+            'keep this hard coded to allow a maximum number of hidden players.
+            'clsHelper.AddByteArray(packet, New Byte() {57})                 'asc(57)=9, 9(hex) = 9(dec) = 9 slots free 
             clsHelper.AddByteArray(packet, New Byte() {98})                 '98=b=11 slots free
+            'clsHelper.AddByteArray(packet, New Byte() {102})                 '98=b=15 slots free
+            'clsHelper.AddByteArray(packet, New Byte() {99})                 '98=b=15 slots free
+
             clsHelper.AddByteArray(packet, New Byte() {49, 48, 48, 48, 48, 48, 48, 48})     '1,0,0,0,0,0,0,0=host counter
-            clsHelper.AddByteArray(packet, CreateStatString(hostName, mapPath, mapCRC))     'game stat
+
+            Debug.WriteLine(String.Format("Sending numPlayers = {0}", numPlayers))
+            clsHelper.AddByteArray(packet, CreateStatString(numPlayers, hostName, mapPath, mapCRC))     'game stat
             clsHelper.AddByteArray(packet, New Byte() {0})                                  'game stat end
 
             buffer = CType(packet.ToArray(GetType(Byte)), Byte())

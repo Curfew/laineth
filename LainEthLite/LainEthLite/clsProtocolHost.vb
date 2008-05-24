@@ -96,13 +96,25 @@ Public Class clsHostSlot
     End Function
 
 End Class
+
+'MrJag|0.8c|ping|class to sort players by ping
+Public Class clsPlayerPingComparer
+    Implements IComparer
+
+    Public Function Compare(ByVal one As Object, ByVal two As Object) As Integer Implements IComparer.Compare
+        Dim onePlayer As clsHostPlayer = DirectCast(one, clsHostPlayer)
+        Dim twoPlayer As clsHostPlayer = DirectCast(two, clsHostPlayer)
+        Return CInt(onePlayer.GetPing() - twoPlayer.GetPing())
+    End Function
+End Class
+
 Public Class clsHostPlayer
     Private PID As Byte
     Private name As String
     Private sock As clsSocketTCPClient
     Private internalIP As Byte()
     Private externalIP As Byte()
-    Private ping As Long
+    Private pingValues As ArrayList 'MrJag|0.8c|ping|array to store historical ping data in
     Private WithEvents whoisTimer As Timers.Timer
     Public Event EventSpoofCheck(ByVal name As String)
 
@@ -112,7 +124,7 @@ Public Class clsHostPlayer
         Me.sock = New clsSocketTCPClient
         Me.externalIP = New Byte() {}
         Me.internalIP = New Byte() {}
-        Me.ping = -255
+        Me.pingValues = New ArrayList   'MrJag|0.8c|ping|array to store historical ping data in
         whoisTimer = New Timers.Timer
     End Sub
     Public Sub New(ByVal pID As Byte, ByVal name As String, ByVal sock As clsSocketTCPClient, ByVal externalIP As Byte(), ByVal internalIP As Byte())
@@ -121,7 +133,7 @@ Public Class clsHostPlayer
         Me.sock = sock
         Me.externalIP = externalIP
         Me.internalIP = internalIP
-        Me.ping = -255
+        Me.pingValues = New ArrayList   'MrJag|0.8c|ping|array to store historical ping data in
         whoisTimer = New Timers.Timer
         whoisTimer.Interval = 1000 'ms
         whoisTimer.Start()
@@ -148,13 +160,33 @@ Public Class clsHostPlayer
     End Function
 
     Public Function GetPing() As Long
-        Return ping
-    End Function
+        Dim retVal As Long = 0
+        Dim pingArray As ArrayList = pingValues 'make a copy of the data
+        pingArray.Sort() ' sort the array by ping
+        If pingArray.Count = 0 Then 'MrJag|0.9b|ping|prevent (0 / 2) - 1 below.
+            retVal = 0
+        ElseIf (pingArray.Count Mod 2) = 0 Then
+            'even
+            retVal = CLng(pingArray.Item(CInt(pingArray.Count / 2) - 1))
+        Else
+            'odd
+            retVal = CLng(pingArray.Item(CInt((pingArray.Count + 1) / 2) - 1))
+        End If
 
+        If pingArray.Count < 5 Then
+            retVal = -1
+        Else
+            retVal = CLng(retVal / 2) ' (divide by 2) to match LC style pings
+        End If
+
+        Return retVal
+    End Function
+    'MrJag|0.8c|ping|function to add to the ping data
     Public Function SetPing(ByVal ping As Long) As Boolean
-        Me.ping = ping
+        Me.pingValues.Add(ping)
         Return True
     End Function
+
     Public Sub SpoofCheck()
         whoisTimer.Start()
     End Sub
@@ -178,10 +210,14 @@ End Class
 
 
 Public Class clsProtocolHost
+    Private Const GAME_PRIVATE As Integer = 17  'MrJag|0.8c|gamestate| needed to test game states
+    Private Const GAME_PUBLIC As Integer = 16
     Private hashSlot As Hashtable       'SID -> SLOT
     Private hashPlayer As Hashtable     'PID -> PLAYER
     Private hostName As String
     Private gameName As String
+    Private numPlayers As Integer
+    Private virtualHostName As String
 
     Public Enum Protocol As Byte
         W3GS_PING_FROM_HOST = 1         '0x01
@@ -238,8 +274,11 @@ Public Class clsProtocolHost
 
             'slot = CType(hashSlot.Item(GetEmptySlot(12)), clsHostSlot)
             'player = CreateNewPlayer(hostName, New clsSocketTCPClient, New Byte() {0, 0, 0, 0}, New Byte() {0, 0, 0, 0})
-            player = CreateNewPlayer("|cFF4080C0Host", New clsSocketTCPClient, New Byte() {0, 0, 0, 0}, New Byte() {0, 0, 0, 0})
             'player = CreateNewPlayer("|cFF4080C0Host", New clsSocketTCPClient, New Byte() {0, 0, 0, 0}, New Byte() {0, 0, 0, 0})
+
+            'player = CreateNewPlayer("|cFF000000", New clsSocketTCPClient, New Byte() {0, 0, 0, 0}, New Byte() {0, 0, 0, 0})
+            player = CreateNewPlayer(virtualHostName, New clsSocketTCPClient, New Byte() {0, 0, 0, 0}, New Byte() {0, 0, 0, 0})
+
             'player = New clsHostPlayer(GetHostPID, "|cFF4080C0Host", New clsSocketTCPClient, New Byte() {0, 0, 0, 0}, New Byte() {0, 0, 0, 0})
 
             'hashSlot.Item(slot.GetSID) = New clsHostSlot(slot.GetSID, New Byte() {player.GetPID, 100, 2, slot.GetIsComputer, slot.GetTeam, slot.GetColor, slot.GetRace, slot.GetComputerType, 100})
@@ -284,8 +323,11 @@ Public Class clsProtocolHost
             hash.Add(CByte(7), New clsHostSlot(7, New Byte() {0, 100, 0, 0, 1, 9, 8, 1, 100}))
             hash.Add(CByte(8), New clsHostSlot(8, New Byte() {0, 100, 0, 0, 1, 10, 8, 1, 100}))
             hash.Add(CByte(9), New clsHostSlot(9, New Byte() {0, 100, 0, 0, 1, 11, 8, 1, 100}))
-            hash.Add(CByte(10), New clsHostSlot(10, New Byte() {0, 100, 1, 0, 12, 12, 96, 1, 100}))    'open obs slot
-            hash.Add(CByte(11), New clsHostSlot(11, New Byte() {0, 100, 1, 0, 12, 12, 96, 1, 100}))    'open obs slot
+
+            If numPlayers = 12 Then
+                hash.Add(CByte(10), New clsHostSlot(10, New Byte() {0, 100, 1, 0, 12, 12, 96, 1, 100}))    'open obs slot
+                hash.Add(CByte(11), New clsHostSlot(11, New Byte() {0, 100, 1, 0, 12, 12, 96, 1, 100}))    'open obs slot
+            End If
             'hash.Add(CByte(12), New clsHostSlot(12, New Byte() {0, 100, 1, 0, 12, 12, 96, 1, 100}))    'open obs slot
 
             Return hash
@@ -296,15 +338,20 @@ Public Class clsProtocolHost
         End Try
     End Function
 
-    Public Sub New(ByVal hostName As String, ByVal gameName As String)
+    Public Sub New(ByVal hostName As String, ByVal gameName As String, ByVal numPlayers As Integer)
         Me.hostName = hostName
         Me.gameName = gameName
+        Me.numPlayers = numPlayers
+        Me.virtualHostName = "|cFF4080C0Host"
 
         hashSlot = Hashtable.Synchronized(New Hashtable)
         hashPlayer = Hashtable.Synchronized(New Hashtable)
 
         hashSlot = CreateDotaSlotStrucure()
-        CreateHost()
+
+        If numPlayers < 12 Then
+            CreateHost()
+        End If
     End Sub
 
     Public Function SwapSlot(ByVal SID1 As Byte, ByVal SID2 As Byte) As Boolean
@@ -389,14 +436,17 @@ Public Class clsProtocolHost
     Public Function GetHostPID(ByVal name As String) As Byte
         SyncLock hashPlayer.SyncRoot
             If GetPIDList.Contains(1) Then
+                'MsgBox("using PID = 1")
                 Return 1        'return the virtual-host PID
             End If
             For Each PID As Byte In hashPlayer.Keys
                 If GetPlayerFromPID(PID).GetName = name Then
+                    'MsgBox(String.Format("alt using PID = {0}", PID))
                     Return PID  'return the host-player's pid if in the game
                 End If
             Next
             For Each PID As Byte In hashPlayer.Keys
+                'MsgBox(String.Format("random using PID = {0}", PID))
                 Return PID      'return a random player if the host-player isn't there
             Next
         End SyncLock
@@ -452,7 +502,7 @@ Public Class clsProtocolHost
             SyncLock hashPlayer.SyncRoot
                 For Each PID In hashPlayer.Keys
                     player = CType(hashPlayer.Item(PID), clsHostPlayer)
-                    If player.GetName = playerName Then
+                    If player.GetName.ToLower = playerName.ToLower Then
                         'If player.GetName Is player Then
                         Return player
                     End If
@@ -571,6 +621,45 @@ Public Class clsProtocolHost
             Return 255
         End Try
     End Function
+    'MrJag|0.8c|function|overloads the GetEmptySlot function to fix the slot change bug.
+    'it finds the next empty slot based on the current player position
+    Public Function GetEmptySlot(ByVal pid As Byte, ByVal team As Byte) As Byte
+        Dim slot As clsHostSlot
+        Dim SID As Byte
+        Try
+            'locate sid for the current player
+            For Each slot In GetSlotList()
+                If slot.GetPID = pid Then
+                    SID = slot.GetSID ' start searching for an open slot from the current players slot position
+                    If team <> slot.GetTeam Then
+                        If team = 0 Then
+                            SID = 0 'if the player is switching to the sentinel team, start seaching with slot 0
+                        ElseIf team = 1 Then
+                            SID = 5 'if the player is switching to the scorge team, start seaching with slot 1
+                        ElseIf team = 12 Then
+                            SID = 10 'if the player is switching to observer team, start seaching with slot 10
+                        End If
+                    ElseIf SID = CByte(4) Then
+                        SID = CByte(0) 'if the player is staying on the sentinel but already in the last slot, start with the 1st slot
+                    ElseIf SID = CByte(9) Then
+                        SID = CByte(5)  'if the player is staying on the scourge but already in the last slot, start with the 6th slot
+                    ElseIf SID = CByte(11) Then
+                        SID = CByte(10)  'if the player is staying on the observer team but already in the last slot, start with the 11th slot
+                    End If
+                End If
+            Next
+
+            For Each slot In GetSlotList()
+                If slot.GetSID >= SID And slot.GetPID = 0 AndAlso slot.GetSlotStatus = 0 AndAlso slot.GetTeam = team Then
+                    Return slot.GetSID
+                End If
+            Next
+
+            Return 255
+        Catch ex As Exception
+            Return 255
+        End Try
+    End Function
 
     Public Function GetReserveSlot(ByVal reserveList As ArrayList) As Byte
         Dim SID As Byte
@@ -578,14 +667,14 @@ Public Class clsProtocolHost
         Try
             SyncLock hashSlot.SyncRoot
                 'first try to find an empty slot
-                For SID = 0 To 9 'MrJag|0.8c|observer| 11
+                For Each SID In hashSlot.Keys 'MrJag|0.8c|observer| 11
                     slot = CType(hashSlot.Item(SID), clsHostSlot)
                     If slot.GetSlotStatus = 0 Then
                         Return SID
                     End If
                 Next
                 'next try to find a closed slot
-                For SID = 0 To 9 'MrJag|0.8c|observer| 11
+                For Each SID In hashSlot.Keys 'MrJag|0.8c|observer| 11
                     slot = CType(hashSlot.Item(SID), clsHostSlot)
                     If slot.GetSlotStatus = 1 Then
                         Return SID
@@ -593,7 +682,7 @@ Public Class clsProtocolHost
                 Next
             End SyncLock
             'lastly, try to find a non reserved player to kick
-            For SID = 0 To 9 'MrJag|0.8c|observer| 11
+            For Each SID In hashSlot.Keys 'MrJag|0.8c|observer| 11
                 If reserveList.Contains(GetPlayerFromSID(SID).GetName.ToLower) Then
                     'do nothing
                 Else
@@ -629,7 +718,8 @@ Public Class clsProtocolHost
         Dim slot As clsHostSlot
         Try
             If hashPlayer.Contains(PID) Then
-                newSID = GetEmptySlot(team)
+                'newSID = GetEmptySlot(team)
+                newSID = GetEmptySlot(PID, team) 'MrJag|0.8c|function|use new overloaded function to fix the slot change bug
                 If newSID <> 255 Then
                     For Each slot In GetSlotList()
                         If slot.GetPID = PID Then
@@ -1235,7 +1325,7 @@ Public Class clsProtocolHost
         Dim packet As ArrayList
         Dim buffer As Byte()
         Try
-
+            'MsgBox(String.Format("sending chat from {0} to {1} - {2}", fromPID, toPIDs, msg))
             If msg.Length > 0 AndAlso toPIDs Is Nothing = False AndAlso toPIDs.Length > 0 Then
                 packet = New ArrayList
                 clsHelper.AddByteArray(packet, New Byte() {247})                            'W3GS header constant

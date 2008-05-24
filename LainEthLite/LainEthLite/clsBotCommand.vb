@@ -22,12 +22,13 @@ Public Class clsBotCommandClassifier
         SWAP
         KICK
         PING
-        COUNTRY
 
         PUB
         PRIV
         REFRESH
         HOLD
+        FROM        'MrJag|0.8c|country|command for country check
+        SPOOF
 
         'game
         LATENCY
@@ -130,7 +131,7 @@ Public Class clsBotCommandHostChannel
 
     Public Event EventBotSay(ByVal msg As String)
     Public Event EventBotResponse(ByVal msg As String, ByVal isWhisper As Boolean, ByVal owner As String)
-    Public Event EventBotHost(ByVal isPublic As Boolean, ByVal gameName As String, ByVal callerName As String, ByVal isWhisper As Boolean, ByVal owner As String)
+    Public Event EventBotHost(ByVal isPublic As Boolean, ByVal numPlayers As Integer, ByVal gameName As String, ByVal callerName As String, ByVal isWhisper As Boolean, ByVal owner As String)
     Public Event EventBotUnHost(ByVal isWhisper As Boolean, ByVal owner As String)
     Public Event EventBotGetGames(ByVal isWhisper As Boolean, ByVal owner As String)
     Public Event EventBotMap(ByVal isWhisper As Boolean, ByVal owner As String, ByVal mapName As String)
@@ -177,9 +178,9 @@ Public Class clsBotCommandHostChannel
                                     If command.commandParamameter(1).ToLower = "public" OrElse command.commandParamameter(1).ToLower = "private" Then
                                         Select Case command.commandParamameter(1).ToLower
                                             Case "public"
-                                                RaiseEvent EventBotHost(True, game,  caller, isWhisper, data.GetUser)
+                                                RaiseEvent EventBotHost(True, 10, game, caller, isWhisper, data.GetUser)
                                             Case "private"
-                                                RaiseEvent EventBotHost(False, game, caller, isWhisper, data.GetUser)
+                                                RaiseEvent EventBotHost(False, 10, game, caller, isWhisper, data.GetUser)
                                         End Select
                                         Exit Select
                                     End If
@@ -199,9 +200,9 @@ Public Class clsBotCommandHostChannel
                                 If command.commandParamameter(0).ToLower = "public" OrElse command.commandParamameter(0).ToLower = "private" Then
                                     Select Case command.commandParamameter(0).ToLower
                                         Case "public"
-                                            RaiseEvent EventBotHost(True, game, data.GetUser, isWhisper, data.GetUser)
+                                            RaiseEvent EventBotHost(True, 10, game, data.GetUser, isWhisper, data.GetUser)
                                         Case "private"
-                                            RaiseEvent EventBotHost(False, game, data.GetUser, isWhisper, data.GetUser)
+                                            RaiseEvent EventBotHost(False, 10, game, data.GetUser, isWhisper, data.GetUser)
                                     End Select
                                     Exit Select
                                 End If
@@ -219,22 +220,50 @@ Public Class clsBotCommandHostChannel
                             RaiseEvent EventBotResponse("-MAP [map hash xml file name]", isWhisper, data.GetUser)
                         End If
                     Case clsBotCommandClassifier.BotCommandType.PUB 'MrJag|0.8c|commands|hosting a public game
+                        Dim obs As Boolean = False
                         game = ""
-                        For i = 0 To command.commandParamameter.Length - 1
-                            game = game & command.commandParamameter(i) & " "
-                        Next
-                        game = game.Trim
-                        If game.Length > 0 Then
-                            RaiseEvent EventBotHost(True, game, data.GetUser, isWhisper, data.GetUser)
+                        If command.commandParamameter(0).ToLower = "obs" Then
+                            obs = True
                         End If
-                    Case clsBotCommandClassifier.BotCommandType.PRIV 'MrJag|0.8c|commands|hosting a private game
+                        If obs Then
+                            For i = 1 To command.commandParamameter.Length - 1
+                                game = game & command.commandParamameter(i) & " "
+                            Next
+                            game = game.Trim
+                            If game.Length > 0 Then
+                                RaiseEvent EventBotHost(True, 12, game, data.GetUser, isWhisper, data.GetUser)
+                            End If
+                        Else
+                            For i = 0 To command.commandParamameter.Length - 1
+                                game = game & command.commandParamameter(i) & " "
+                            Next
+                            game = game.Trim
+                            If game.Length > 0 Then
+                                RaiseEvent EventBotHost(True, 10, game, data.GetUser, isWhisper, data.GetUser)
+                            End If
+                        End If
+                    Case clsBotCommandClassifier.BotCommandType.PRIV 'MrJag|0.8c|commands|hosting a public game
+                        Dim obs As Boolean = False
                         game = ""
-                        For i = 0 To command.commandParamameter.Length - 1
-                            game = game & command.commandParamameter(i) & " "
-                        Next
-                        game = game.Trim
-                        If game.Length > 0 Then
-                            RaiseEvent EventBotHost(False, game, data.GetUser, isWhisper, data.GetUser)
+                        If command.commandParamameter(0).ToLower = "obs" Then
+                            obs = True
+                        End If
+                        If obs Then
+                            For i = 1 To command.commandParamameter.Length - 1
+                                game = game & command.commandParamameter(i) & " "
+                            Next
+                            game = game.Trim
+                            If game.Length > 0 Then
+                                RaiseEvent EventBotHost(False, 12, game, data.GetUser, isWhisper, data.GetUser)
+                            End If
+                        Else
+                            For i = 0 To command.commandParamameter.Length - 1
+                                game = game & command.commandParamameter(i) & " "
+                            Next
+                            game = game.Trim
+                            If game.Length > 0 Then
+                                RaiseEvent EventBotHost(False, 10, game, data.GetUser, isWhisper, data.GetUser)
+                            End If
                         End If
                 End Select
             End If
@@ -257,10 +286,12 @@ Public Class clsBotCommandHostLobby
     Public Event EventBotEnd()
     Public Event EventBotSwap(ByVal slot1 As Byte, ByVal slot2 As Byte)
     Public Event EventBotKick(ByVal name As String)
-    Public Event EventBotPing()
+    Public Event EventBotPing(ByVal maxPing As Integer)     'MrJag|0.8c|ping|
     Public Event EventBotCountry()
     Public Event EventBotToggleRefresh(ByVal enabled As Boolean)                    'MrJag|0.9b|refresh|
     Public Event EventBotHold(ByVal name As String)         'MrJag|0.9b|hold|
+    Public Event EventBotSpoof(ByVal name As String, ByVal msg As String)
+    Public Event EventBotSay(ByVal msg As String)
 
 
     Public Sub New(ByVal callerName As String, ByVal adminName As String())
@@ -282,11 +313,12 @@ Public Class clsBotCommandHostLobby
             If user.ToLower <> callerName.ToLower AndAlso IsPrivileged(user, adminName) = False Then
                 Return False
             End If
-
+            'MsgBox(String.Format("processing cmd {0} {1}", command.GetCommandType, command.GetPayLoad))
             Select Case command.GetCommandType
                 Case clsBotCommandClassifier.BotCommandType.INVALID
                 Case clsBotCommandClassifier.BotCommandType.SAY
-                    RaiseEvent EventBotResponse(command.GetPayLoad)
+                    'RaiseEvent EventBotResponse(command.GetPayLoad)
+                    RaiseEvent EventBotSay(command.GetPayLoad)
                 Case clsBotCommandClassifier.BotCommandType.VERSION
                     RaiseEvent EventBotResponse(frmLainEthLite.ProjectLainVersion)
                 Case clsBotCommandClassifier.BotCommandType.START
@@ -345,9 +377,15 @@ Public Class clsBotCommandHostLobby
                         End If
                     End If
                     RaiseEvent EventBotResponse("-KICK [name]")
-                Case clsBotCommandClassifier.BotCommandType.PING
-                    RaiseEvent EventBotPing()
-                Case clsBotCommandClassifier.BotCommandType.COUNTRY
+                Case clsBotCommandClassifier.BotCommandType.PING    'MrJag|0.8c|ping|
+                    If command.commandParamameter.Length = 0 Then
+                        RaiseEvent EventBotPing(1000)
+                    ElseIf command.commandParamameter.Length = 1 Then
+                        RaiseEvent EventBotPing(CInt(command.commandParamameter(0)))
+                    Else
+                        RaiseEvent EventBotResponse("!PING <max ping>")
+                    End If
+                Case clsBotCommandClassifier.BotCommandType.FROM
                     RaiseEvent EventBotCountry()
                 Case clsBotCommandClassifier.BotCommandType.REFRESH    'MrJag|0.9b|hold|
                     If command.commandParamameter.Length = 1 Then
@@ -365,6 +403,14 @@ Public Class clsBotCommandHostLobby
                     Else
                         RaiseEvent EventBotResponse("!HOLD [name]")
                     End If
+                Case clsBotCommandClassifier.BotCommandType.SPOOF    'MrJag|0.9b|hold|
+                    Dim spoofMsg As String = ""
+                    For i = 1 To command.commandParamameter.Length - 1
+                        spoofMsg = spoofMsg & command.commandParamameter(i) & " "
+                    Next
+                    spoofMsg = spoofMsg.Trim
+                    RaiseEvent EventBotSpoof(command.commandParamameter(0), spoofMsg)
+
             End Select
             Return True
         Catch ex As Exception
@@ -383,6 +429,8 @@ Public Class clsBotCommandHostGame
     Public Event EventBotKick(ByVal name As String, ByVal kicker As String)
     Public Event EventBotGameCancel()
     Public Event EventBotAbort()
+    Public Event EventBotSpoof(ByVal name As String, ByVal msg As String)
+    Public Event EventBotSay(ByVal msg As String)
 
 
     Public Sub New(ByVal callerName As String, ByVal adminName As String())
@@ -431,6 +479,13 @@ Public Class clsBotCommandHostGame
                     RaiseEvent EventBotGameCancel()
                 Case clsBotCommandClassifier.BotCommandType.ABORT
                     RaiseEvent EventBotAbort()
+                Case clsBotCommandClassifier.BotCommandType.SPOOF    'MrJag|0.9b|hold|
+                    Dim spoofMsg As String = ""
+                    For i = 1 To command.commandParamameter.Length - 1
+                        spoofMsg = spoofMsg & command.commandParamameter(i) & " "
+                    Next
+                    spoofMsg = spoofMsg.Trim
+                    RaiseEvent EventBotSpoof(command.commandParamameter(0), spoofMsg)
             End Select
 
             Return True

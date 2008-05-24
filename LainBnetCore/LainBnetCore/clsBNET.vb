@@ -488,24 +488,24 @@ Public Class clsBNET
         End Try
     End Function
 
-    Public Function GameCreate(ByVal currentChannel As String, ByVal state As Byte, ByVal gameName As String, ByVal hostName As String, ByVal upTime As Integer, ByVal mapPath As String, ByVal mapCRC As Byte()) As Boolean
+    Public Function GameCreate(ByVal currentChannel As String, ByVal state As Byte, ByVal numPlayers As Integer, ByVal gameName As String, ByVal hostName As String, ByVal upTime As Integer, ByVal mapPath As String, ByVal mapCRC As Byte()) As Boolean
         Try
             isInChat = False
             If currentChannel.Length > 0 Then
                 firstChannel = currentChannel
             End If
 
-            Return TrySend(sockBNET, bnet.SEND_SID_STARTADVEX3(state, gameName, hostName, upTime, mapPath, mapCRC), clsCommandPacket.PacketType.BNET, "SID_STARTADVEX3")
+            Return TrySend(sockBNET, bnet.SEND_SID_STARTADVEX3(state, numPlayers, gameName, hostName, upTime, mapPath, mapCRC), clsCommandPacket.PacketType.BNET, "SID_STARTADVEX3")
         Catch ex As Exception
             Return False
             RaiseEvent EventError("GameCreate", ex.ToString)
         End Try
     End Function
     'MrJag|0.10|refresh|
-    Public Function GameRefresh(ByVal state As Byte, ByVal gameName As String, ByVal hostName As String, ByVal numSlot As Integer, ByVal upTime As Long, ByVal mapPath As String, ByVal mapCRC As Byte()) As Boolean
+    Public Function GameRefresh(ByVal state As Byte, ByVal numPlayers As Integer, ByVal gameName As String, ByVal hostName As String, ByVal numSlot As Integer, ByVal upTime As Long, ByVal mapPath As String, ByVal mapCRC As Byte()) As Boolean
         Try
             'Return TrySend(sockBNET, bnet.SEND_SID_STARTADVEX3(state, gameName, hostName, numSlot, upTime, mapPath, mapCRC), clsCommandPacket.PacketType.BNET, "SID_STARTADVEX3")
-            Return TrySend(sockBNET, bnet.SEND_SID_STARTADVEX3(state, gameName, hostName, upTime, mapPath, mapCRC), clsCommandPacket.PacketType.BNET, "SID_STARTADVEX3")
+            Return TrySend(sockBNET, bnet.SEND_SID_STARTADVEX3(state, numPlayers, gameName, hostName, upTime, mapPath, mapCRC), clsCommandPacket.PacketType.BNET, "SID_STARTADVEX3")
         Catch ex As Exception
             Return False
             RaiseEvent EventError("GameRefresh", ex.ToString)

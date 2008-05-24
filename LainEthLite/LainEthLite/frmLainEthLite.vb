@@ -1061,7 +1061,7 @@ Public Class frmLainEthLite
             SendChat(String.Format("/me : {0}", msg))
         End If
     End Sub
-    Private Sub bot_EventBotHost(ByVal isPublic As Boolean, ByVal gameName As String, ByVal callerName As String, ByVal isWhisper As Boolean, ByVal owner As String) Handles bot.EventBotHost
+    Private Sub bot_EventBotHost(ByVal isPublic As Boolean, ByVal numPlayers As Integer, ByVal gameName As String, ByVal callerName As String, ByVal isWhisper As Boolean, ByVal owner As String) Handles bot.EventBotHost
         Dim host As clsGameHost
         Dim state As Byte
 
@@ -1071,7 +1071,7 @@ Public Class frmLainEthLite
             state = GAME_PRIVATE
         End If
 
-        host = New clsGameHost(GetAdminList, state, gameName, bnet.GetUniqueUserName, callerName, bnet.GetHostPort, map.GetMapPath, map.GetMapSize, map.GetMapInfo, map.GetMapCRC, bnet)
+        host = New clsGameHost(GetAdminList, state, numPlayers, gameName, bnet.GetUniqueUserName, callerName, bnet.GetHostPort, map.GetMapPath, map.GetMapSize, map.GetMapInfo, map.GetMapCRC, bnet)
         If host.HostStart Then
             listHost.Add(host)
             UpdateGameList()
@@ -1090,7 +1090,7 @@ Public Class frmLainEthLite
             'Threading.Thread.Sleep(1000)
             bnet.GetFriendList()    'MrJag|0.8c|reserve|get the current list of friends
             bnet.GetClanList()      'MrJag|0.8c|reserve|get the current list of clan members
-            bnet.GameCreate(labelChannel.Text, state, gameName, bnet.GetUniqueUserName, 0, map.GetMapPath, map.GetMapCRC)
+            bnet.GameCreate(labelChannel.Text, state, numPlayers, gameName, bnet.GetUniqueUserName, 0, map.GetMapPath, map.GetMapCRC)
         Else
             If currentHost.GetGameName.Length > 0 Then
                 If isWhisper Then
