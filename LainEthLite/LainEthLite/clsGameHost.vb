@@ -129,7 +129,7 @@ Public Class clsGameHost
         hashClient = New Hashtable
         queuePacket = New Queue
         listAction = New ArrayList
-        protocol = New clsProtocolHost(hostName, gameName, numPlayers)
+        protocol = New clsProtocolHost(hostName, gameName, numPlayers, callerName)
         botLobby = New clsBotCommandHostLobby("", New String() {})
         botGame = New clsBotCommandHostGame("", New String() {})
         spoofID = 0
@@ -172,7 +172,7 @@ Public Class clsGameHost
         hashClient = Hashtable.Synchronized(New Hashtable)
         queuePacket = Queue.Synchronized(New Queue)
         listAction = ArrayList.Synchronized(New ArrayList)
-        protocol = New clsProtocolHost(hostName, gameName, numPlayers)
+        protocol = New clsProtocolHost(hostName, gameName, numPlayers, callerName)
         botLobby = New clsBotCommandHostLobby(callerName, adminName)
         botGame = New clsBotCommandHostGame(callerName, adminName)
 
@@ -304,7 +304,8 @@ Public Class clsGameHost
         If ms > 0 Then
             actionTimer.Interval = ms
         End If
-        SendChat(String.Format("Latency Time = {0}, Quality <- - Latency + -> Performance", actionTimer.Interval))
+        'SendChat(String.Format("Latency Time = {0}, Quality <- - Latency + -> Performance", actionTimer.Interval))
+        SendChat(String.Format("Latency Time = {0},  Use a higher value for less spikes or a lower value for less delay.", actionTimer.Interval))
     End Sub
 
     Private Sub botGame_EventBotKick(ByVal name As String, ByVal kicker As String) Handles botGame.EventBotKick
@@ -385,7 +386,7 @@ Public Class clsGameHost
                 'MrJag|0.8c|antispoof|Adds the user to the safelist if they are in the current game.
                 If protocol.GetPlayerFromName(eventChat.GetUser).GetName = eventChat.GetUser Then 'check if we have a player in the game with that name
                     spoofSafe.Add(eventChat.GetUser)
-                    SendChat(String.Format("Identification for {0} is accepted", eventChat.GetUser))
+                    'SendChat(String.Format("Identification for {0} is accepted", eventChat.GetUser))
                 End If
             Else
                 'MrJag|0.8c|commands|Runs commands if neccessary
@@ -469,27 +470,21 @@ Public Class clsGameHost
         End Try
     End Sub
     Private Sub botLobby_EventBotSwap(ByVal slot1 As Byte, ByVal slot2 As Byte) Handles botLobby.EventBotSwap
-        If slot1 <> protocol.GetHostSID AndAlso slot2 <> protocol.GetHostSID Then
-            If protocol.SwapSlot(slot1, slot2) Then
-                SendSlotInfo()
-            End If
+        If protocol.SwapSlot(slot1, slot2) Then
+            SendSlotInfo()
         End If
     End Sub
     Private Sub botLobby_EventBotResponse(ByVal msg As String) Handles botLobby.EventBotResponse
         SendChat(msg)
     End Sub
-    Private Sub botLobby_EventBotSlot(ByVal open As Boolean, ByVal slotNumber As Byte) Handles botLobby.EventBotSlot
-        Dim player As clsHostPlayer
-
-        If slotNumber <> protocol.GetHostSID Then
-            player = protocol.GetPlayerFromSID(slotNumber)
-            If player.GetPID <> 255 Then
-                ClientStop(player.GetSock, open)
-            Else
-                protocol.SlotOpenClose(slotNumber, open)
-            End If
-            SendSlotInfo()
+    Private Sub botLobby_EventBotSlot(ByVal open As Boolean, ByVal SID As Byte) Handles botLobby.EventBotSlot
+        Dim player As clsHostPlayer = protocol.GetPlayerFromSID(SID)
+        If player.GetPID <> 255 Then
+            ClientStop(player.GetSock, open)
+        Else
+            protocol.SlotOpenClose(SID, open)
         End If
+        SendSlotInfo()
     End Sub
     Private Sub botLobby_EventBotStart(ByVal isForced As Boolean) Handles botLobby.EventBotStart
         GameStart(isForced)
@@ -554,7 +549,6 @@ Public Class clsGameHost
     Private Sub OnEventMessage_SpoofCheck(ByVal name As String)
         Try
             If gameState = GAME_PUBLIC Then
-                Debug.WriteLine("sending whois")
                 bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/whois {0}", name), hostName, False))
             ElseIf gameState = GAME_PRIVATE Then
                 bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/w {0} Spoofcheck by replying to this message [ /r spoofcheck ]", name), hostName, False))
@@ -718,7 +712,8 @@ Public Class clsGameHost
                         End If
                     End If
 
-                    If protocol.GetPlayerCount(protocol.GetHostPID) = 0 Then
+                    'If protocol.GetPlayerCount(protocol.GetHostPID) = 0 Then
+                    If protocol.GetPlayerCount = 0 Then
                         Dispose("No players remain")
                     End If
                 End If
@@ -826,16 +821,18 @@ Public Class clsGameHost
                         Case clsProtocolHost.Protocol.W3GS_GAMELOADED_SELF
                             player = protocol.GetPlayerFromSocket(command.GetPacketSocket())
                             If player.GetPID <> 255 Then
+                                player.mapLoaded() 'store that the player is done loading
                                 SendAllClient(protocol.SEND_W3GS_GAMELOADED_OTHERS(player.GetPID))
                                 totalFinishLoad = totalFinishLoad + 1
 
                                 'Debug.WriteLine(totalFinishLoad & " : " & protocol.GetPlayerCount(protocol.GetHostPID))
-                                Debug.WriteLine(String.Format("[{0}/{1}] {2} finished loading in {3} seconds", totalFinishLoad, (protocol.GetPlayerCount + 1), player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
+                                Debug.WriteLine(String.Format("[{0}/{1}] {2} finished loading in {3} seconds", totalFinishLoad, protocol.GetPlayerCount, player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
                                 If totalFinishLoad = 1 Then
                                     SendChat(String.Format("Fastest Load By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
                                 End If
 
-                                If totalFinishLoad >= protocol.GetPlayerCount Then
+                                If totalFinishLoad = protocol.GetPlayerCount Then
+                                    Debug.WriteLine(String.Format("All {0} players finished loading.", protocol.GetPlayerCount))
                                     isGameLoaded = True
                                     pingTimer.Stop()
                                     actionTimer.Start()
@@ -866,6 +863,9 @@ Public Class clsGameHost
                         Case clsProtocolHost.Protocol.W3GS_LEAVEGAME
                             If protocol.RECEIVE_W3GS_LEAVEGAME(command.GetPacketData) Then
                                 Debug.WriteLine(protocol.GetPlayerFromSocket(command.GetPacketSocket()).GetName & " left voluntarily")
+                                If protocol.GetPlayerFromSocket(command.GetPacketSocket()).isLoaded Then
+                                    totalFinishLoad = totalFinishLoad - 1
+                                End If
 
                                 If isGameLoaded Then
                                     SendChat(String.Format("{0} has Left the game", protocol.GetPlayerFromSocket(command.GetPacketSocket()).GetName))
@@ -1036,12 +1036,12 @@ Public Class clsGameHost
             If msg.Length > 220 Then
                 msg = msg.Substring(0, 220)
             End If
-            Return protocol.GetPlayerFromPID(PID).GetSock.Send(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), New Byte() {PID}, 16, New Byte() {}, msg))
+            Return protocol.GetPlayerFromPID(PID).GetSock.Send(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(), New Byte() {PID}, 16, New Byte() {}, msg))
         ElseIf isGameLoaded Then
             If msg.Length > 120 Then
                 msg = msg.Substring(0, 120)
             End If
-            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), New Byte() {PID}, 32, New Byte() {0, 0, 0, 0}, msg))
+            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(), New Byte() {PID}, 32, New Byte() {0, 0, 0, 0}, msg))
         Else
             Return False
         End If
@@ -1054,14 +1054,14 @@ Public Class clsGameHost
             End If
             'MsgBox("using countdown not started")
             'Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), protocol.GetPIDList(protocol.GetHostPID), 16, New Byte() {}, msg))
-            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), protocol.GetPIDList(), 16, New Byte() {}, msg))
+            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(), protocol.GetPIDList(), 16, New Byte() {}, msg))
         ElseIf isGameLoaded Then
             If msg.Length > 120 Then
                 msg = msg.Substring(0, 120)
             End If
             'Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), protocol.GetPIDList(protocol.GetHostPID), 32, New Byte() {0, 0, 0, 0}, msg))
             'MsgBox("using game loaded")
-            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(callerName), protocol.GetPIDList(), 32, New Byte() {0, 0, 0, 0}, msg))
+            Return SendAllClient(protocol.SEND_W3GS_CHAT_FROM_HOST(protocol.GetHostPID(), protocol.GetPIDList(), 32, New Byte() {0, 0, 0, 0}, msg))
         Else
             Return False
         End If
@@ -1155,6 +1155,7 @@ Public Class clsGameHost
                 SendAllClient(protocol.SEND_W3GS_COUNTDOWN_START)
                 'insert delay here for countdown.
                 protocol.RemoveHost()
+                'Thread.Sleep(2000)
                 SendAllClient(protocol.SEND_W3GS_COUNTDOWN_END)
 
                 'SendAllClient(protocol.SEND_W3GS_GAMELOADED_OTHERS(protocol.GetHostPID))

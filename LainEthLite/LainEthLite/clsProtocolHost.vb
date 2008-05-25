@@ -1,4 +1,4 @@
-Option Explicit On 
+Option Explicit On
 Option Strict On
 
 Imports LainBnetCore
@@ -115,6 +115,8 @@ Public Class clsHostPlayer
     Private internalIP As Byte()
     Private externalIP As Byte()
     Private pingValues As ArrayList 'MrJag|0.8c|ping|array to store historical ping data in
+    Private finishedLoading As Boolean
+
     Private WithEvents whoisTimer As Timers.Timer
     Public Event EventSpoofCheck(ByVal name As String)
 
@@ -125,6 +127,8 @@ Public Class clsHostPlayer
         Me.externalIP = New Byte() {}
         Me.internalIP = New Byte() {}
         Me.pingValues = New ArrayList   'MrJag|0.8c|ping|array to store historical ping data in
+        Me.finishedLoading = False
+
         whoisTimer = New Timers.Timer
     End Sub
     Public Sub New(ByVal pID As Byte, ByVal name As String, ByVal sock As clsSocketTCPClient, ByVal externalIP As Byte(), ByVal internalIP As Byte())
@@ -134,11 +138,19 @@ Public Class clsHostPlayer
         Me.externalIP = externalIP
         Me.internalIP = internalIP
         Me.pingValues = New ArrayList   'MrJag|0.8c|ping|array to store historical ping data in
+        Me.finishedLoading = False
+
         whoisTimer = New Timers.Timer
         whoisTimer.Interval = 1000 'ms
         whoisTimer.Start()
     End Sub
 
+    Public Function isLoaded() As Boolean
+        Return finishedLoading
+    End Function
+    Public Sub mapLoaded()
+        finishedLoading = True
+    End Sub
     Public Function GetPID() As Byte
         Return PID
     End Function
@@ -176,7 +188,7 @@ Public Class clsHostPlayer
         If pingArray.Count < 5 Then
             retVal = -1
         Else
-            retVal = CLng(retVal / 2) ' (divide by 2) to match LC style pings
+            'retVal = CLng(retVal / 2) ' (divide by 2) to match LC style pings
         End If
 
         Return retVal
@@ -218,6 +230,7 @@ Public Class clsProtocolHost
     Private gameName As String
     Private numPlayers As Integer
     Private virtualHostName As String
+    Private callerName As String
 
     Public Enum Protocol As Byte
         W3GS_PING_FROM_HOST = 1         '0x01
@@ -293,13 +306,14 @@ Public Class clsProtocolHost
     'MrJag
     Public Function RemoveHost() As Boolean
         Try
-            If hashPlayer.Contains(GetHostPID) Then
-                'MsgBox("Host player removed from hash")
+            If GetPlayerFromPID(GetHostPID).GetName = virtualHostName Then
+                Debug.WriteLine(String.Format("Removing PID:{0} Name:{1}", GetHostPID, GetPlayerFromPID(GetHostPID).GetName))
+                For Each player In GetPlayerList()
+                    Debug.WriteLine(String.Format("Telling {0}:{2} that {1} left the game", player.GetName, virtualHostName, player.GetPID))
+                    player.GetSock.Send(SEND_W3GS_PLAYERLEAVE_OTHERS(GetHostPID))
+                Next
                 hashPlayer.Remove(GetHostPID)
             End If
-            For Each player In GetPlayerList(GetHostPID)
-                player.GetSock.Send(SEND_W3GS_PLAYERLEAVE_OTHERS(GetHostPID))
-            Next
             Return True
         Catch ex As Exception
             Debug.WriteLine(ex)
@@ -338,7 +352,7 @@ Public Class clsProtocolHost
         End Try
     End Function
 
-    Public Sub New(ByVal hostName As String, ByVal gameName As String, ByVal numPlayers As Integer)
+    Public Sub New(ByVal hostName As String, ByVal gameName As String, ByVal numPlayers As Integer, ByVal callerName As String)
         Me.hostName = hostName
         Me.gameName = gameName
         Me.numPlayers = numPlayers
@@ -431,23 +445,19 @@ Public Class clsProtocolHost
         End Try
     End Function
     Public Function GetHostPID() As Byte
-        Return 1
-    End Function
-    Public Function GetHostPID(ByVal name As String) As Byte
         SyncLock hashPlayer.SyncRoot
-            If GetPIDList.Contains(1) Then
-                'MsgBox("using PID = 1")
-                Return 1        'return the virtual-host PID
-            End If
-            For Each PID As Byte In hashPlayer.Keys
-                If GetPlayerFromPID(PID).GetName = name Then
-                    'MsgBox(String.Format("alt using PID = {0}", PID))
-                    Return PID  'return the host-player's pid if in the game
+            For Each player In GetPlayerList()
+                If player.GetName = virtualHostName Then
+                    Return player.GetPID
                 End If
             Next
-            For Each PID As Byte In hashPlayer.Keys
-                'MsgBox(String.Format("random using PID = {0}", PID))
-                Return PID      'return a random player if the host-player isn't there
+            For Each player In GetPlayerList()
+                If player.GetName = callerName Then
+                    Return player.GetPID
+                End If
+            Next
+            For Each player In GetPlayerList()
+                Return player.GetPID
             Next
         End SyncLock
         Return 1
