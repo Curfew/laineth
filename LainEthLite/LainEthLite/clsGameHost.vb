@@ -776,7 +776,9 @@ Public Class clsGameHost
                 isRunning = True
 
                 timeRemain = timeRemain - 1
-                SendChat(String.Format("Game Shut Down in {0} seconds", timeRemain * 10))
+                If timeRemain < 4 Then
+                    SendChat(String.Format("Game Shut Down in {0} seconds", timeRemain * 10))
+                End If
 
                 If timeRemain = 0 Then
                     Dispose("Shutdown Counter Reached 0")
@@ -816,6 +818,7 @@ Public Class clsGameHost
         Dim PID As Byte
         Dim SID As Byte 'MrJag|0.8c|reserve|used to save the slot ID of the player to kick
         Dim player As clsHostPlayer
+        Dim loadAwards As String = ""
 
         Try
             While queuePacket.Count > 0
@@ -832,7 +835,8 @@ Public Class clsGameHost
                                 'Debug.WriteLine(totalFinishLoad & " : " & protocol.GetPlayerCount(protocol.GetHostPID))
                                 Debug.WriteLine(String.Format("[{0}/{1}] {2} finished loading in {3} seconds", totalFinishLoad, protocol.GetPlayerCount, player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
                                 If totalFinishLoad = 1 Then
-                                    SendChat(String.Format("Fastest Load By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
+
+                                    loadAwards = String.Format("Fastest Load By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2))
                                 End If
 
                                 If totalFinishLoad = protocol.GetPlayerCount Then
@@ -845,7 +849,8 @@ Public Class clsGameHost
                                     'SendChatGame(String.Format("Hi Welcome to Dota {0} Hosting Service", frmLainEthLite.ProjectLainName))
                                     'SendChat(String.Format("{0} Host - created by Leax", frmLainEthLite.ProjectLainVersion))
                                     'SendChat(String.Format("Visit http://lainbot.tk for more info"))
-                                    SendChat(String.Format("Map Loaded Last By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
+                                    SendChat(loadAwards)
+                                    SendChat(String.Format("Longest Load By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
 
                                 End If
                             End If
