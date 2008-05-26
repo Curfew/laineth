@@ -553,6 +553,7 @@ Public Class clsGameHost
             ElseIf gameState = GAME_PRIVATE Then
                 bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/w {0} Spoofcheck by replying to this message [ /r spoofcheck ]", name), hostName, False))
             End If
+            RemoveHandler protocol.GetPlayerFromName(name).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
         Catch ex As Exception
             Debug.WriteLine(ex)
         End Try
@@ -794,7 +795,10 @@ Public Class clsGameHost
                 isRunning = True
 
                 'bnet.GameRefresh(gameState, numPlayers, gameName, hostName, (10 - protocol.GetPlayerCount), getUptime, mapPath, mapCRC)
-                bnet.GameRefresh(gameState, numPlayers, gameName, hostName, (numPlayers - protocol.GetPlayerCount), getUptime, mapPath, mapCRC)
+                If GetTotalPlayers() < numPlayers Then
+                    bnet.GameRefresh(gameState, numPlayers, gameName, hostName, (numPlayers - protocol.GetPlayerCount), getUptime, mapPath, mapCRC)
+                End If
+
                 'If enableRefresh = True Then
                 'SendChat(String.Format("Refreshed [{0}].", gameName))
                 'End If
@@ -896,7 +900,8 @@ Public Class clsGameHost
                                 PID = protocol.PlayerAdd(player.GetName(), player.GetSock, player.GetExternalIP, player.GetInternalIP)
                                 If PID <> 255 Then
                                     Debug.WriteLine(String.Format("Adding spoofcheck handler for {0}", player.GetName))
-                                    AddHandler protocol.GetPlayerFromSocket(command.GetPacketSocket()).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
+
+                                    AddHandler protocol.GetPlayerFromPID(PID).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
 
                                     Debug.WriteLine(String.Format("Player:{0} PID:{1} SID:{5} Internal:{2} External:{3} PlayerNumExclusive:{4} ", player.GetName, PID, clsHelper.PrintArray(player.GetInternalIP), clsHelper.PrintArray(player.GetExternalIP), playerCount, protocol.GetPlayerSlot(PID).GetSID))
                                     'Debug.WriteLine(player.GetName() & " : " & PID & " " & clsHelper.PrintArray(player.GetInternalIP) & " " & clsHelper.PrintArray(player.GetExternalIP))
