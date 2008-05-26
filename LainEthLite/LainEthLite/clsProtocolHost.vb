@@ -357,6 +357,7 @@ Public Class clsProtocolHost
         Me.gameName = gameName
         Me.numPlayers = numPlayers
         Me.virtualHostName = "|cFF4080C0Host"
+        Me.callerName = callerName
 
         hashSlot = Hashtable.Synchronized(New Hashtable)
         hashPlayer = Hashtable.Synchronized(New Hashtable)
