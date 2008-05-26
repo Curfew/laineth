@@ -460,11 +460,11 @@ Public Class clsGameHost
         Catch ex As Exception
         End Try
     End Sub
-    Private Sub botLobby_EventBotLock(ByVal username As String)
+    Private Sub botLobby_EventBotLock(ByVal username As String) Handles botLobby.EventBotLock
         startLock = protocol.GetPlayerFromName(username).GetPID()
         SendChat("Game locked.")
     End Sub
-    Private Sub botLobby_EventBotUnlock(ByVal username As String)
+    Private Sub botLobby_EventBotUnlock(ByVal username As String) Handles botLobby.EventBotUnlock
         startLock = 255
         SendChat("Game unlocked.")
     End Sub
@@ -1132,6 +1132,15 @@ Public Class clsGameHost
             If runOnce = False Then
 
                 If isForced = False Then    'is not forced then must pass spoof check and balance team
+                    If startLock <> 255 Then
+                        SendChat(String.Format("The game has been locked by {0}, an admin must clear the lock or use -START FORCE to continue.", protocol.GetPlayerFromPID(startLock).GetName))
+                        Return False
+                    End If
+                    If protocol.GetPlayerCountTeam(TEAM_SENTINEL) <> protocol.GetPlayerCountTeam(TEAM_SCOURGE) Then
+                        SendChat("The teams are uneven, use -START FORCE to continue.")
+                        Return False
+                    End If
+
                     unsafes = New System.Text.StringBuilder
                     For Each player In protocol.GetPlayerList(protocol.GetHostPID)
                         If spoofSafe.Contains(player.GetName) = False Then
@@ -1145,15 +1154,6 @@ Public Class clsGameHost
                         Return False
                     End If
 
-                    If protocol.GetPlayerCountTeam(TEAM_SENTINEL) <> protocol.GetPlayerCountTeam(TEAM_SCOURGE) Then
-                        SendChat("The Sentinel and Scourge teams are uneven.  !Start FORCE to continue")
-                        Return False
-                    End If
-
-                    If startLock <> 255 Then
-                        SendChat(String.Format("The game has been locked by {0}, an admin must clear the lock or use -START FORCE to continue.", protocol.GetPlayerFromPID(startLock).GetName))
-                        Return False
-                    End If
                 End If
 
                 runOnce = True
