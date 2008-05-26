@@ -66,6 +66,7 @@ Public Class clsGameHost
 
     Private creationTime As Long                'MrJag|0.10|refresh| time game was created
     Private enableRefresh As Boolean            'MrJag|0.10|refresh| toggle for refresh
+    Private startLock As Byte
 
     Private gameState As Byte
     Private numPlayers As Integer
@@ -124,6 +125,7 @@ Public Class clsGameHost
 
         Me.creationTime = Environment.TickCount     'MrJag|0.10|refresh| initalize creation time
         Me.enableRefresh = True                     'MrJag|0.10|refresh| toggle for refresh
+        Me.startLock = 255                          '255 = not locked, anything else = PID of player who locked it
 
         sockServer = New clsSocketTCPServer
         hashClient = New Hashtable
@@ -167,6 +169,7 @@ Public Class clsGameHost
 
         Me.creationTime = Environment.TickCount     'MrJag|0.10|refresh| initalize creation time
         Me.enableRefresh = True                     'MrJag|0.10|refresh| toggle for refresh
+        Me.startLock = 255                          '255 = not locked, anything else = PID of player who locked it.
 
         sockServer = New clsSocketTCPServer
         hashClient = Hashtable.Synchronized(New Hashtable)
@@ -457,6 +460,15 @@ Public Class clsGameHost
         Catch ex As Exception
         End Try
     End Sub
+    Private Sub botLobby_EventBotLock(ByVal username As String)
+        startLock = protocol.GetPlayerFromName(username).GetPID()
+        SendChat("Game locked.")
+    End Sub
+    Private Sub botLobby_EventBotUnlock(ByVal username As String)
+        startLock = 255
+        SendChat("Game unlocked.")
+    End Sub
+
     'MrJag|0.9b|hold|
     Private Sub botLobby_EventBotHold(ByVal name As String) Handles botLobby.EventBotHold
         Try
@@ -1133,8 +1145,13 @@ Public Class clsGameHost
                         Return False
                     End If
 
-                    If protocol.GetPlayerCountTeam(TEAM_SENTINEL) = 0 OrElse protocol.GetPlayerCountTeam(TEAM_SCOURGE) = 0 Then
-                        SendChat("Sentinel and Scourge need at least 1 player each")
+                    If protocol.GetPlayerCountTeam(TEAM_SENTINEL) <> protocol.GetPlayerCountTeam(TEAM_SCOURGE) Then
+                        SendChat("The Sentinel and Scourge teams are uneven.  !Start FORCE to continue")
+                        Return False
+                    End If
+
+                    If startLock <> 255 Then
+                        SendChat(String.Format("The game has been locked by {0}, an admin must clear the lock or use -START FORCE to continue.", protocol.GetPlayerFromPID(startLock).GetName))
                         Return False
                     End If
                 End If

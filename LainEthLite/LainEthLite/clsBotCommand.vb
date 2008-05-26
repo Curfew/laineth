@@ -29,10 +29,12 @@ Public Class clsBotCommandClassifier
         HOLD
         FROM        'MrJag|0.8c|country|command for country check
         SPOOF
+        LOCK
+        UNLOCK
 
         'game
         LATENCY
-        GAMECANCEL
+        'GAMECANCEL - replaced with END command
         ABORT
 
     End Enum
@@ -292,6 +294,8 @@ Public Class clsBotCommandHostLobby
     Public Event EventBotHold(ByVal name As String)         'MrJag|0.9b|hold|
     Public Event EventBotSpoof(ByVal name As String, ByVal msg As String)
     Public Event EventBotSay(ByVal msg As String)
+    Public Event EventBotLock(ByVal username As String)
+    Public Event EventBotUnlock(ByVal username As String)
 
 
     Public Sub New(ByVal callerName As String, ByVal adminName As String())
@@ -410,7 +414,10 @@ Public Class clsBotCommandHostLobby
                     Next
                     spoofMsg = spoofMsg.Trim
                     RaiseEvent EventBotSpoof(command.commandParamameter(0), spoofMsg)
-
+                Case clsBotCommandClassifier.BotCommandType.LOCK    'MrJag|0.9b|hold|
+                    RaiseEvent EventBotLock(user)
+                Case clsBotCommandClassifier.BotCommandType.UNLOCK    'MrJag|0.9b|hold|
+                    RaiseEvent EventBotUnlock(user)
             End Select
             Return True
         Catch ex As Exception
@@ -475,7 +482,7 @@ Public Class clsBotCommandHostGame
                             Exit Select
                         End If
                     End If
-                Case clsBotCommandClassifier.BotCommandType.GAMECANCEL
+                Case clsBotCommandClassifier.BotCommandType.END
                     RaiseEvent EventBotGameCancel()
                 Case clsBotCommandClassifier.BotCommandType.ABORT
                     RaiseEvent EventBotAbort()
