@@ -402,35 +402,36 @@ Public Class clsGameHost
         ElseIf eventChat.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_INFO And gameState = GAME_PUBLIC Then
             'MrJag|0.8c|antispoof|handles a battle.net info response to see if the player is in the game.
             playerName = Split(eventChat.GetMessage)(0)     'grab the first word in the message as the player name.
-
-            If eventChat.GetMessage.Contains("is away") Then
-                'do nothing -- the user setup an away message
-            ElseIf eventChat.GetMessage.Contains("is unavailable") Then
-                'do nothing -- the user setup a ??? message
-            ElseIf eventChat.GetMessage.Contains("is refusing messages") Then
-                'do nothing -- the user setup a Do Not Disturb message
-            ElseIf eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in the channel") Then
-                SendChat(String.Format("Name spoof detected -- The real {0} is not in a game.", playerName))     'chat alert that the player spoofchecked
-            ElseIf eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in a private channel") Then
-                SendChat(String.Format("Name spoof detected -- The real {0} is in a private channel.", playerName))     'chat alert that the player spoofchecked
-            ElseIf eventChat.GetMessage.Contains(String.Format("is using Warcraft III The Frozen Throne in game", gameName)) Then
-                If eventChat.GetMessage.Contains(gameName) Then
-                    If protocol.GetPlayerFromName(playerName).GetName = playerName Then
-                        spoofSafe.Add(playerName)                           'add the player to the spoofcheck list
-                        'SendChatLobby(String.Format("{0} has passed the anti-spoof check.", playerName))     'chat alert that the player spoofchecked
-                        'MsgBox(String.Format("Adding {0} to the safe list.", playerName))
+            If protocol.GetPlayerFromName(playerName).GetPID <> 255 Then
+                If eventChat.GetMessage.Contains("is away") Then
+                    'do nothing -- the user setup an away message
+                ElseIf eventChat.GetMessage.Contains("is unavailable") Then
+                    'do nothing -- the user setup a ??? message
+                ElseIf eventChat.GetMessage.Contains("is refusing messages") Then
+                    'do nothing -- the user setup a Do Not Disturb message
+                ElseIf eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in the channel") Then
+                    SendChat(String.Format("Name spoof detected -- The real {0} is not in a game.", playerName))     'chat alert that the player spoofchecked
+                ElseIf eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in a private channel") Then
+                    SendChat(String.Format("Name spoof detected -- The real {0} is in a private channel.", playerName))     'chat alert that the player spoofchecked
+                ElseIf eventChat.GetMessage.Contains(String.Format("is using Warcraft III The Frozen Throne in game", gameName)) Then
+                    If eventChat.GetMessage.Contains(gameName) Then
+                        If protocol.GetPlayerFromName(playerName).GetName = playerName Then
+                            spoofSafe.Add(playerName)                           'add the player to the spoofcheck list
+                            'SendChatLobby(String.Format("{0} has passed the anti-spoof check.", playerName))     'chat alert that the player spoofchecked
+                            'MsgBox(String.Format("Adding {0} to the safe list.", playerName))
+                        End If
+                    Else
+                        SendChat(String.Format("Name spoof detected -- The real {0} is in another game.", playerName))     'chat alert that the player spoofchecked
                     End If
+                ElseIf eventChat.GetMessage.Length = 0 Then
+                    'do nothing -- the clan has a Message Of The Day setup for their channel.
                 Else
-                    SendChat(String.Format("Name spoof detected -- The real {0} is in another game.", playerName))     'chat alert that the player spoofchecked
+                    'protocol.GetPlayerFromName(playerName).SpoofCheck()
+                    'AddHandler protocol.GetPlayerFromName(playerName).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
+                    'SendChat(String.Format("DEBUG: {0}:[{1}]", playerName, eventChat.GetMessage))   'debug code - replace with auto-kick later
+                    'bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/w {0} I was unable to confirm your identity, '/r anything' to manually confirm.", playerName), hostName, False))
+                    'bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/w MrJag antispoof debug: [{0}] [{1}]", playerName, eventChat.GetMessage), hostName, False))
                 End If
-            ElseIf eventChat.GetMessage.Length = 0 Then
-                'do nothing -- the clan has a Message Of The Day setup for their channel.
-            Else
-                'protocol.GetPlayerFromName(playerName).SpoofCheck()
-                'AddHandler protocol.GetPlayerFromName(playerName).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
-                'SendChat(String.Format("DEBUG: {0}:[{1}]", playerName, eventChat.GetMessage))   'debug code - replace with auto-kick later
-                'bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/w {0} I was unable to confirm your identity, '/r anything' to manually confirm.", playerName), hostName, False))
-                'bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/w MrJag antispoof debug: [{0}] [{1}]", playerName, eventChat.GetMessage), hostName, False))
             End If
         End If
     End Sub
