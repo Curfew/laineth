@@ -290,7 +290,7 @@ Partial Class frmLENPClient
         Me.Controls.Add(Me.labelStatus)
         Me.Controls.Add(Me.groupConnection)
         Me.Controls.Add(Me.buttonGo)
-        Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
+        Me.Icon = CType(resources.GetObject("trayIcon.Icon"), System.Drawing.Icon)
         Me.Name = "frmLENPClient"
         Me.Text = "LENP Client Simulator"
         Me.groupConnection.ResumeLayout(False)

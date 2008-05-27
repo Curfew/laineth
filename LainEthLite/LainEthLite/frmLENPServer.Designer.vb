@@ -118,7 +118,7 @@ Partial Class frmLENPServer
         Me.ClientSize = New System.Drawing.Size(411, 123)
         Me.Controls.Add(Me.buttonGo)
         Me.Controls.Add(Me.groupServerConfig)
-        Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
+        Me.Icon = CType(resources.GetObject("trayIcon.Icon"), System.Drawing.Icon)
         Me.Name = "frmLENPServer"
         Me.Text = "LENP Server"
         Me.groupServerConfig.ResumeLayout(False)

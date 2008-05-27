@@ -600,7 +600,7 @@ Public Class frmLainEthLite
         Me.Controls.Add(Me.groupParam)
         Me.Controls.Add(Me.txtChat)
         Me.Controls.Add(Me.txtChatLog)
-        Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
+        Me.Icon = CType(resources.GetObject("trayIcon.Icon"), System.Drawing.Icon)
         Me.Menu = Me.menuMain
         Me.Name = "frmLainEthLite"
         Me.groupParam.ResumeLayout(False)

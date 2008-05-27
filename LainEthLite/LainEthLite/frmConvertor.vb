@@ -116,7 +116,7 @@ Public Class frmConvertor
         Me.Controls.Add(Me.splitConvertor)
         Me.Controls.Add(Me.buttonHex)
         Me.Controls.Add(Me.buttonDec)
-        Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
+        Me.Icon = CType(resources.GetObject("trayIcon.Icon"), System.Drawing.Icon)
         Me.Name = "frmConvertor"
         Me.Text = "Byte Numeric Convertor"
         Me.splitConvertor.Panel1.ResumeLayout(False)
