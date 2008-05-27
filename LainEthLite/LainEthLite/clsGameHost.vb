@@ -939,7 +939,7 @@ Public Class clsGameHost
                                     SendChat(" ", PID)
                                     SendChat(" ", PID)
                                     SendChat(" ", PID)
-                                    SendChat("DotA Hosting Service                                                         http://dhb.zor.org", PID)
+                                    SendChat("Battle.net Game Host                                 http://ghost.pwner.org", PID)
                                     SendChat("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-", PID)
                                     SendChat(String.Format("          Game Name:    {0}", gameName), PID)
                                     Exit Select
@@ -1018,7 +1018,7 @@ Public Class clsGameHost
     Private Function AnnouceWinner(ByVal callerName As String, ByVal gameName As String, ByVal sentinelPlayer() As String, ByVal scourgePlayer() As String, ByVal referee() As String, ByVal winner As String) As Boolean
         RaiseEvent EventGameWon(callerName, gameName, sentinelPlayer, scourgePlayer, referee, winner)
         'SendChat("Game has officially ended, a Game Shut Down will be initialised, Please make your leave or use -ABORT to abort")
-        SendChat("To report a bug or for more information on Dota Host Bot, visit http://dhb.zor.org")
+        SendChat("To report a bug or for more information on Dota Host Bot, visit http://ghost.pwner.org")
         SendChat("Credits: Leax, Netrunner, MrJag, and everyone else on the forums that gave support.")
         'SendChat("Test1|nTest2|rTest3|cFF0044BBTest4    Test5" + Environment.NewLine + "Test6")
         endTimer.Start()

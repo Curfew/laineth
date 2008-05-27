@@ -16,7 +16,7 @@ Public Class frmLainEthLite
     Private Const GAME_PRIVATE As Integer = 17
     Private Const GAME_PUBLIC As Integer = 16
 
-    Public Const ProjectLainVersion As String = "Experimental v0.10"
+    Public Const ProjectLainVersion As String = "Battle.net Game Host v0.10"
     Public Const ProjectLainName As String = "LainEthLite"
     Public Const ProjectLainConfig As String = "LainEthLiteConfiguration"
     Public Const ProjectLainMap As String = "LainEthMap"
@@ -116,6 +116,7 @@ Public Class frmLainEthLite
         Me.menuMain = New System.Windows.Forms.MainMenu(Me.components)
         Me.menuFile = New System.Windows.Forms.MenuItem
         Me.menuAutoReconnect = New System.Windows.Forms.MenuItem
+        Me.menuConvertor = New System.Windows.Forms.MenuItem
         Me.menuExit = New System.Windows.Forms.MenuItem
         Me.menuLENP = New System.Windows.Forms.MenuItem
         Me.menuLENPServer = New System.Windows.Forms.MenuItem
@@ -158,7 +159,6 @@ Public Class frmLainEthLite
         Me.buttonGameInfo = New System.Windows.Forms.Button
         Me.buttonGameStop = New System.Windows.Forms.Button
         Me.listGame = New System.Windows.Forms.ListBox
-        Me.menuConvertor = New System.Windows.Forms.MenuItem
         Me.groupParam.SuspendLayout()
         Me.groupUser.SuspendLayout()
         Me.groupGame.SuspendLayout()
@@ -178,6 +178,11 @@ Public Class frmLainEthLite
         '
         Me.menuAutoReconnect.Index = 0
         Me.menuAutoReconnect.Text = "Auto Reconnect"
+        '
+        'menuConvertor
+        '
+        Me.menuConvertor.Index = 1
+        Me.menuConvertor.Text = "Hexadecimal Convertor"
         '
         'menuExit
         '
@@ -207,7 +212,7 @@ Public Class frmLainEthLite
         'contextShow
         '
         Me.contextShow.Index = 0
-        Me.contextShow.Text = "Show LainEthLite"
+        Me.contextShow.Text = "Show Game Host"
         '
         'contextExit
         '
@@ -227,9 +232,9 @@ Public Class frmLainEthLite
         Me.labelStatus.BackColor = System.Drawing.Color.DarkGray
         Me.labelStatus.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
         Me.labelStatus.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelStatus.Location = New System.Drawing.Point(0, 584)
+        Me.labelStatus.Location = New System.Drawing.Point(0, 587)
         Me.labelStatus.Name = "labelStatus"
-        Me.labelStatus.Size = New System.Drawing.Size(532, 24)
+        Me.labelStatus.Size = New System.Drawing.Size(564, 21)
         Me.labelStatus.TabIndex = 7
         '
         'txtChatLog
@@ -238,12 +243,12 @@ Public Class frmLainEthLite
                     Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.txtChatLog.Font = New System.Drawing.Font("Microsoft Sans Serif", 7.8!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.txtChatLog.Location = New System.Drawing.Point(8, 328)
+        Me.txtChatLog.Location = New System.Drawing.Point(7, 284)
         Me.txtChatLog.Multiline = True
         Me.txtChatLog.Name = "txtChatLog"
         Me.txtChatLog.ReadOnly = True
         Me.txtChatLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical
-        Me.txtChatLog.Size = New System.Drawing.Size(512, 200)
+        Me.txtChatLog.Size = New System.Drawing.Size(547, 255)
         Me.txtChatLog.TabIndex = 1
         Me.txtChatLog.Text = "======================" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Chat Log" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "======================"
         '
@@ -251,27 +256,27 @@ Public Class frmLainEthLite
         '
         Me.txtChat.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtChat.Location = New System.Drawing.Point(8, 536)
+        Me.txtChat.Location = New System.Drawing.Point(7, 546)
         Me.txtChat.Multiline = True
         Me.txtChat.Name = "txtChat"
-        Me.txtChat.Size = New System.Drawing.Size(448, 40)
+        Me.txtChat.Size = New System.Drawing.Size(494, 34)
         Me.txtChat.TabIndex = 3
         '
         'buttonChat
         '
         Me.buttonChat.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.buttonChat.Location = New System.Drawing.Point(464, 536)
+        Me.buttonChat.Location = New System.Drawing.Point(508, 546)
         Me.buttonChat.Name = "buttonChat"
-        Me.buttonChat.Size = New System.Drawing.Size(56, 40)
+        Me.buttonChat.Size = New System.Drawing.Size(46, 34)
         Me.buttonChat.TabIndex = 4
         Me.buttonChat.Text = "Send"
         '
         'buttonGo
         '
         Me.buttonGo.Font = New System.Drawing.Font("Courier New", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.buttonGo.Location = New System.Drawing.Point(8, 8)
+        Me.buttonGo.Location = New System.Drawing.Point(7, 7)
         Me.buttonGo.Name = "buttonGo"
-        Me.buttonGo.Size = New System.Drawing.Size(48, 280)
+        Me.buttonGo.Size = New System.Drawing.Size(40, 243)
         Me.buttonGo.TabIndex = 0
         Me.buttonGo.Text = ":)"
         '
@@ -281,9 +286,9 @@ Public Class frmLainEthLite
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.labelChannel.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
         Me.labelChannel.Font = New System.Drawing.Font("Courier New", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelChannel.Location = New System.Drawing.Point(8, 296)
+        Me.labelChannel.Location = New System.Drawing.Point(7, 257)
         Me.labelChannel.Name = "labelChannel"
-        Me.labelChannel.Size = New System.Drawing.Size(712, 23)
+        Me.labelChannel.Size = New System.Drawing.Size(714, 19)
         Me.labelChannel.TabIndex = 5
         Me.labelChannel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
         '
@@ -291,74 +296,74 @@ Public Class frmLainEthLite
         '
         Me.comboRealm.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.comboRealm.ItemHeight = 16
+        Me.comboRealm.ItemHeight = 13
         Me.comboRealm.Items.AddRange(New Object() {"uswest.battle.net", "useast.battle.net", "asia.battle.net", "europe.battle.net"})
-        Me.comboRealm.Location = New System.Drawing.Point(128, 56)
+        Me.comboRealm.Location = New System.Drawing.Point(107, 49)
         Me.comboRealm.Name = "comboRealm"
-        Me.comboRealm.Size = New System.Drawing.Size(264, 24)
+        Me.comboRealm.Size = New System.Drawing.Size(341, 21)
         Me.comboRealm.TabIndex = 1
         Me.comboRealm.Text = "uswest.battle.net"
         '
         'labelBotServer
         '
         Me.labelBotServer.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelBotServer.Location = New System.Drawing.Point(8, 24)
+        Me.labelBotServer.Location = New System.Drawing.Point(7, 21)
         Me.labelBotServer.Name = "labelBotServer"
-        Me.labelBotServer.Size = New System.Drawing.Size(112, 24)
+        Me.labelBotServer.Size = New System.Drawing.Size(93, 21)
         Me.labelBotServer.TabIndex = 31
         Me.labelBotServer.Text = "War3 Path"
         '
         'labelFirstChannel
         '
         Me.labelFirstChannel.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelFirstChannel.Location = New System.Drawing.Point(8, 216)
+        Me.labelFirstChannel.Location = New System.Drawing.Point(7, 187)
         Me.labelFirstChannel.Name = "labelFirstChannel"
-        Me.labelFirstChannel.Size = New System.Drawing.Size(112, 24)
+        Me.labelFirstChannel.Size = New System.Drawing.Size(93, 21)
         Me.labelFirstChannel.TabIndex = 28
         Me.labelFirstChannel.Text = "Home Channel"
         '
         'labelPassword
         '
         Me.labelPassword.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelPassword.Location = New System.Drawing.Point(8, 184)
+        Me.labelPassword.Location = New System.Drawing.Point(7, 159)
         Me.labelPassword.Name = "labelPassword"
-        Me.labelPassword.Size = New System.Drawing.Size(112, 24)
+        Me.labelPassword.Size = New System.Drawing.Size(93, 21)
         Me.labelPassword.TabIndex = 27
         Me.labelPassword.Text = "Password"
         '
         'labelUserName
         '
         Me.labelUserName.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelUserName.Location = New System.Drawing.Point(8, 152)
+        Me.labelUserName.Location = New System.Drawing.Point(7, 132)
         Me.labelUserName.Name = "labelUserName"
-        Me.labelUserName.Size = New System.Drawing.Size(112, 24)
+        Me.labelUserName.Size = New System.Drawing.Size(93, 21)
         Me.labelUserName.TabIndex = 26
         Me.labelUserName.Text = "User Name"
         '
         'labelTFTKey
         '
         Me.labelTFTKey.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelTFTKey.Location = New System.Drawing.Point(8, 120)
+        Me.labelTFTKey.Location = New System.Drawing.Point(7, 104)
         Me.labelTFTKey.Name = "labelTFTKey"
-        Me.labelTFTKey.Size = New System.Drawing.Size(112, 16)
+        Me.labelTFTKey.Size = New System.Drawing.Size(93, 14)
         Me.labelTFTKey.TabIndex = 25
         Me.labelTFTKey.Text = "TFT Key"
         '
         'labelROCKey
         '
         Me.labelROCKey.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelROCKey.Location = New System.Drawing.Point(8, 88)
+        Me.labelROCKey.Location = New System.Drawing.Point(7, 76)
         Me.labelROCKey.Name = "labelROCKey"
-        Me.labelROCKey.Size = New System.Drawing.Size(112, 24)
+        Me.labelROCKey.Size = New System.Drawing.Size(93, 21)
         Me.labelROCKey.TabIndex = 24
         Me.labelROCKey.Text = "ROC Key"
         '
         'labelRealm
         '
         Me.labelRealm.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelRealm.Location = New System.Drawing.Point(8, 56)
+        Me.labelRealm.Location = New System.Drawing.Point(7, 49)
         Me.labelRealm.Name = "labelRealm"
-        Me.labelRealm.Size = New System.Drawing.Size(112, 24)
+        Me.labelRealm.Size = New System.Drawing.Size(93, 20)
         Me.labelRealm.TabIndex = 23
         Me.labelRealm.Text = "Realm"
         '
@@ -366,9 +371,9 @@ Public Class frmLainEthLite
         '
         Me.txtChannel.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtChannel.Location = New System.Drawing.Point(128, 216)
+        Me.txtChannel.Location = New System.Drawing.Point(107, 187)
         Me.txtChannel.Name = "txtChannel"
-        Me.txtChannel.Size = New System.Drawing.Size(264, 22)
+        Me.txtChannel.Size = New System.Drawing.Size(341, 20)
         Me.txtChannel.TabIndex = 6
         Me.txtChannel.Text = "The Void"
         '
@@ -376,10 +381,10 @@ Public Class frmLainEthLite
         '
         Me.txtPassword.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtPassword.Location = New System.Drawing.Point(128, 184)
+        Me.txtPassword.Location = New System.Drawing.Point(107, 159)
         Me.txtPassword.Name = "txtPassword"
         Me.txtPassword.PasswordChar = Global.Microsoft.VisualBasic.ChrW(42)
-        Me.txtPassword.Size = New System.Drawing.Size(264, 22)
+        Me.txtPassword.Size = New System.Drawing.Size(341, 20)
         Me.txtPassword.TabIndex = 5
         Me.txtPassword.Text = "blacksheepwall"
         '
@@ -387,9 +392,9 @@ Public Class frmLainEthLite
         '
         Me.txtAccount.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtAccount.Location = New System.Drawing.Point(128, 152)
+        Me.txtAccount.Location = New System.Drawing.Point(107, 132)
         Me.txtAccount.Name = "txtAccount"
-        Me.txtAccount.Size = New System.Drawing.Size(264, 22)
+        Me.txtAccount.Size = New System.Drawing.Size(341, 20)
         Me.txtAccount.TabIndex = 4
         Me.txtAccount.Text = "lain"
         '
@@ -397,10 +402,10 @@ Public Class frmLainEthLite
         '
         Me.txtTFT.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtTFT.Location = New System.Drawing.Point(128, 120)
+        Me.txtTFT.Location = New System.Drawing.Point(107, 104)
         Me.txtTFT.MaxLength = 26
         Me.txtTFT.Name = "txtTFT"
-        Me.txtTFT.Size = New System.Drawing.Size(264, 22)
+        Me.txtTFT.Size = New System.Drawing.Size(341, 20)
         Me.txtTFT.TabIndex = 3
         Me.txtTFT.Text = "XXXXXXXXXXXXXXXXXXXXXXXXXX"
         '
@@ -408,10 +413,10 @@ Public Class frmLainEthLite
         '
         Me.txtROC.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtROC.Location = New System.Drawing.Point(128, 88)
+        Me.txtROC.Location = New System.Drawing.Point(107, 76)
         Me.txtROC.MaxLength = 26
         Me.txtROC.Name = "txtROC"
-        Me.txtROC.Size = New System.Drawing.Size(264, 22)
+        Me.txtROC.Size = New System.Drawing.Size(341, 20)
         Me.txtROC.TabIndex = 2
         Me.txtROC.Text = "XXXXXXXXXXXXXXXXXXXXXXXXXX"
         '
@@ -435,9 +440,9 @@ Public Class frmLainEthLite
         Me.groupParam.Controls.Add(Me.txtAccount)
         Me.groupParam.Controls.Add(Me.txtTFT)
         Me.groupParam.Controls.Add(Me.txtROC)
-        Me.groupParam.Location = New System.Drawing.Point(320, 8)
+        Me.groupParam.Location = New System.Drawing.Point(267, 7)
         Me.groupParam.Name = "groupParam"
-        Me.groupParam.Size = New System.Drawing.Size(400, 280)
+        Me.groupParam.Size = New System.Drawing.Size(454, 243)
         Me.groupParam.TabIndex = 0
         Me.groupParam.TabStop = False
         Me.groupParam.Text = "Wacraft Fronzen Throne Configuration"
@@ -446,18 +451,18 @@ Public Class frmLainEthLite
         '
         Me.txtHostPort.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtHostPort.Location = New System.Drawing.Point(128, 248)
+        Me.txtHostPort.Location = New System.Drawing.Point(107, 215)
         Me.txtHostPort.Name = "txtHostPort"
-        Me.txtHostPort.Size = New System.Drawing.Size(264, 22)
+        Me.txtHostPort.Size = New System.Drawing.Size(341, 20)
         Me.txtHostPort.TabIndex = 7
         Me.txtHostPort.Text = "6000"
         '
         'labelHostPort
         '
         Me.labelHostPort.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelHostPort.Location = New System.Drawing.Point(8, 248)
+        Me.labelHostPort.Location = New System.Drawing.Point(7, 215)
         Me.labelHostPort.Name = "labelHostPort"
-        Me.labelHostPort.Size = New System.Drawing.Size(112, 24)
+        Me.labelHostPort.Size = New System.Drawing.Size(93, 21)
         Me.labelHostPort.TabIndex = 34
         Me.labelHostPort.Text = "Host Port"
         '
@@ -465,9 +470,9 @@ Public Class frmLainEthLite
         '
         Me.txtWar3.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtWar3.Location = New System.Drawing.Point(128, 24)
+        Me.txtWar3.Location = New System.Drawing.Point(107, 21)
         Me.txtWar3.Name = "txtWar3"
-        Me.txtWar3.Size = New System.Drawing.Size(264, 22)
+        Me.txtWar3.Size = New System.Drawing.Size(341, 20)
         Me.txtWar3.TabIndex = 0
         Me.txtWar3.Text = "C:\Program Files\Warcraft III\"
         '
@@ -476,9 +481,9 @@ Public Class frmLainEthLite
         Me.labelSummary.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.labelSummary.BackColor = System.Drawing.Color.DarkGray
         Me.labelSummary.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelSummary.Location = New System.Drawing.Point(528, 536)
+        Me.labelSummary.Location = New System.Drawing.Point(561, 546)
         Me.labelSummary.Name = "labelSummary"
-        Me.labelSummary.Size = New System.Drawing.Size(200, 72)
+        Me.labelSummary.Size = New System.Drawing.Size(167, 62)
         Me.labelSummary.TabIndex = 9
         Me.labelSummary.Text = "-=[Lain]=-"
         '
@@ -486,10 +491,9 @@ Public Class frmLainEthLite
         '
         Me.listChannelPeople.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.listChannelPeople.ItemHeight = 16
-        Me.listChannelPeople.Location = New System.Drawing.Point(528, 328)
+        Me.listChannelPeople.Location = New System.Drawing.Point(561, 284)
         Me.listChannelPeople.Name = "listChannelPeople"
-        Me.listChannelPeople.Size = New System.Drawing.Size(192, 180)
+        Me.listChannelPeople.Size = New System.Drawing.Size(160, 225)
         Me.listChannelPeople.TabIndex = 2
         '
         'groupUser
@@ -498,9 +502,9 @@ Public Class frmLainEthLite
         Me.groupUser.Controls.Add(Me.buttonUserAdd)
         Me.groupUser.Controls.Add(Me.txtUserName)
         Me.groupUser.Controls.Add(Me.listUser)
-        Me.groupUser.Location = New System.Drawing.Point(64, 8)
+        Me.groupUser.Location = New System.Drawing.Point(53, 7)
         Me.groupUser.Name = "groupUser"
-        Me.groupUser.Size = New System.Drawing.Size(112, 280)
+        Me.groupUser.Size = New System.Drawing.Size(94, 243)
         Me.groupUser.TabIndex = 10
         Me.groupUser.TabStop = False
         Me.groupUser.Text = "Admins"
@@ -509,9 +513,9 @@ Public Class frmLainEthLite
         '
         Me.buttonUserRemove.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.buttonUserRemove.Font = New System.Drawing.Font("Microsoft Sans Serif", 7.8!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.buttonUserRemove.Location = New System.Drawing.Point(8, 248)
+        Me.buttonUserRemove.Location = New System.Drawing.Point(7, 215)
         Me.buttonUserRemove.Name = "buttonUserRemove"
-        Me.buttonUserRemove.Size = New System.Drawing.Size(96, 23)
+        Me.buttonUserRemove.Size = New System.Drawing.Size(80, 20)
         Me.buttonUserRemove.TabIndex = 3
         Me.buttonUserRemove.Text = "Remove"
         '
@@ -519,27 +523,26 @@ Public Class frmLainEthLite
         '
         Me.buttonUserAdd.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.buttonUserAdd.Font = New System.Drawing.Font("Microsoft Sans Serif", 7.8!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.buttonUserAdd.Location = New System.Drawing.Point(8, 216)
+        Me.buttonUserAdd.Location = New System.Drawing.Point(7, 187)
         Me.buttonUserAdd.Name = "buttonUserAdd"
-        Me.buttonUserAdd.Size = New System.Drawing.Size(96, 23)
+        Me.buttonUserAdd.Size = New System.Drawing.Size(80, 20)
         Me.buttonUserAdd.TabIndex = 2
         Me.buttonUserAdd.Text = "Add"
         '
         'txtUserName
         '
         Me.txtUserName.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtUserName.Location = New System.Drawing.Point(8, 184)
+        Me.txtUserName.Location = New System.Drawing.Point(7, 159)
         Me.txtUserName.Name = "txtUserName"
-        Me.txtUserName.Size = New System.Drawing.Size(96, 22)
+        Me.txtUserName.Size = New System.Drawing.Size(80, 20)
         Me.txtUserName.TabIndex = 1
         '
         'listUser
         '
         Me.listUser.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.listUser.ItemHeight = 16
-        Me.listUser.Location = New System.Drawing.Point(8, 24)
+        Me.listUser.Location = New System.Drawing.Point(7, 21)
         Me.listUser.Name = "listUser"
-        Me.listUser.Size = New System.Drawing.Size(96, 148)
+        Me.listUser.Size = New System.Drawing.Size(80, 121)
         Me.listUser.TabIndex = 0
         '
         'groupGame
@@ -547,9 +550,9 @@ Public Class frmLainEthLite
         Me.groupGame.Controls.Add(Me.buttonGameInfo)
         Me.groupGame.Controls.Add(Me.buttonGameStop)
         Me.groupGame.Controls.Add(Me.listGame)
-        Me.groupGame.Location = New System.Drawing.Point(184, 8)
+        Me.groupGame.Location = New System.Drawing.Point(153, 7)
         Me.groupGame.Name = "groupGame"
-        Me.groupGame.Size = New System.Drawing.Size(128, 280)
+        Me.groupGame.Size = New System.Drawing.Size(107, 243)
         Me.groupGame.TabIndex = 11
         Me.groupGame.TabStop = False
         Me.groupGame.Text = "Games"
@@ -558,9 +561,9 @@ Public Class frmLainEthLite
         '
         Me.buttonGameInfo.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.buttonGameInfo.Font = New System.Drawing.Font("Microsoft Sans Serif", 7.8!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.buttonGameInfo.Location = New System.Drawing.Point(8, 216)
+        Me.buttonGameInfo.Location = New System.Drawing.Point(7, 187)
         Me.buttonGameInfo.Name = "buttonGameInfo"
-        Me.buttonGameInfo.Size = New System.Drawing.Size(112, 23)
+        Me.buttonGameInfo.Size = New System.Drawing.Size(93, 20)
         Me.buttonGameInfo.TabIndex = 4
         Me.buttonGameInfo.Text = "Info"
         '
@@ -568,29 +571,23 @@ Public Class frmLainEthLite
         '
         Me.buttonGameStop.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.buttonGameStop.Font = New System.Drawing.Font("Microsoft Sans Serif", 7.8!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.buttonGameStop.Location = New System.Drawing.Point(8, 248)
+        Me.buttonGameStop.Location = New System.Drawing.Point(7, 215)
         Me.buttonGameStop.Name = "buttonGameStop"
-        Me.buttonGameStop.Size = New System.Drawing.Size(112, 23)
+        Me.buttonGameStop.Size = New System.Drawing.Size(93, 20)
         Me.buttonGameStop.TabIndex = 3
         Me.buttonGameStop.Text = "Stop"
         '
         'listGame
         '
         Me.listGame.Anchor = CType((System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.listGame.ItemHeight = 16
-        Me.listGame.Location = New System.Drawing.Point(8, 24)
+        Me.listGame.Location = New System.Drawing.Point(7, 21)
         Me.listGame.Name = "listGame"
-        Me.listGame.Size = New System.Drawing.Size(112, 180)
+        Me.listGame.Size = New System.Drawing.Size(93, 147)
         Me.listGame.TabIndex = 0
-        '
-        'menuConvertor
-        '
-        Me.menuConvertor.Index = 1
-        Me.menuConvertor.Text = "Hexadecimal Convertor"
         '
         'frmLainEthLite
         '
-        Me.AutoScaleBaseSize = New System.Drawing.Size(6, 15)
+        Me.AutoScaleBaseSize = New System.Drawing.Size(5, 13)
         Me.ClientSize = New System.Drawing.Size(728, 606)
         Me.Controls.Add(Me.groupGame)
         Me.Controls.Add(Me.groupUser)
