@@ -409,11 +409,11 @@ Public Class clsGameHost
                     'do nothing -- the user setup a ??? message
                 ElseIf eventChat.GetMessage.Contains("is refusing messages") Then
                     'do nothing -- the user setup a Do Not Disturb message
-                ElseIf eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in the channel") Then
+                ElseIf (eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in the channel") Or eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in channel")) Then
                     SendChat(String.Format("Name spoof detected -- The real {0} is not in a game.", playerName))     'chat alert that the player spoofchecked
                 ElseIf eventChat.GetMessage.Contains("is using Warcraft III The Frozen Throne in a private channel") Then
                     SendChat(String.Format("Name spoof detected -- The real {0} is in a private channel.", playerName))     'chat alert that the player spoofchecked
-                ElseIf eventChat.GetMessage.Contains(String.Format("is using Warcraft III The Frozen Throne in game", gameName)) Then
+                ElseIf (eventChat.GetMessage.Contains(String.Format("is using Warcraft III The Frozen Throne in game", gameName)) Or eventChat.GetMessage.Contains(String.Format("is using Warcraft III Frozen Throne and is currently in  game", gameName))) Then
                     If eventChat.GetMessage.Contains(gameName) Then
                         If protocol.GetPlayerFromName(playerName).GetName = playerName Then
                             spoofSafe.Add(playerName)                           'add the player to the spoofcheck list
@@ -637,10 +637,10 @@ Public Class clsGameHost
             ElseIf isGameLoaded Then
                 botGame.ProcessCommand(name, msg)
             End If
-        Else
-            If msg.StartsWith("-") Then
-                SendChat(String.Format("Please Identify (Spoof Check) By Whispering [ /w {0} {1} ]", hostName, spoofID), fromPID)
-            End If
+            'Else
+            'If msg.StartsWith("-") Then
+            'SendChat(String.Format("Please Identify (Spoof Check) By Whispering [ /w {0} {1} ]", hostName, spoofID), fromPID)
+            'End If
         End If
     End Sub
     Private Sub protocol_EventHostTeam(ByVal fromPID As Byte, ByVal toPIDs As Byte(), ByVal flag As Byte, ByVal team As Byte) Handles protocol.EventHostTeam
@@ -939,7 +939,7 @@ Public Class clsGameHost
                                     SendChat(" ", PID)
                                     SendChat(" ", PID)
                                     SendChat(" ", PID)
-                                    SendChat("Battle.net Game Host                                 http://ghost.pwner.org", PID)
+                                    SendChat("Battle.net Game Host                                                http://ghost.pwner.org", PID)
                                     SendChat("-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-", PID)
                                     SendChat(String.Format("          Game Name:    {0}", gameName), PID)
                                     Exit Select
