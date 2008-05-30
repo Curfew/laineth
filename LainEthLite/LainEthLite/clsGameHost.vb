@@ -295,6 +295,7 @@ Public Class clsGameHost
 
     End Sub
     Private Sub client_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
+        SendChat(String.Format("{0} pulled the plug.", protocol.GetPlayerFromSocket(CType(socket, clsSocketTCPClient)).GetName))
         ClientStop(CType(socket, clsSocketTCPClient))
     End Sub
 #End Region
@@ -687,7 +688,8 @@ Public Class clsGameHost
                 team = buffer(buffer.Length - 1 - 3)
                 If isGameLoaded = True AndAlso teamWon = 255 Then 'winner not yet set
                     teamWon = CType(team - 1, Byte)
-                    SendChat(String.Format("{0} Has Won The Game ! Tree/Throne Down [{1}]", GetTeamName(teamWon), protocol.GetPlayerFromPID(fromPID).GetName))
+                    SendChat(String.Format("{0} Wins!", GetTeamName(teamWon)))
+                    'SendChat(String.Format("{0} Has Won The Game ! Tree/Throne Down [{1}]", GetTeamName(teamWon), protocol.GetPlayerFromPID(fromPID).GetName))
                     AnnouceWinner(callerName, gameName, CType(listSentinelPlayer.ToArray(GetType(String)), String()), CType(listScourgePlayer.ToArray(GetType(String)), String()), CType(listReferee.ToArray(GetType(String)), String()), GetTeamName(teamWon))
                 End If
 
@@ -848,7 +850,6 @@ Public Class clsGameHost
                                 'Debug.WriteLine(totalFinishLoad & " : " & protocol.GetPlayerCount(protocol.GetHostPID))
                                 Debug.WriteLine(String.Format("[{0}/{1}] {2} finished loading in {3} seconds", totalFinishLoad, protocol.GetPlayerCount, player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
                                 If totalFinishLoad = 1 Then
-
                                     loadAwards = String.Format("Fastest Load By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2))
                                 End If
 
@@ -859,9 +860,6 @@ Public Class clsGameHost
                                     actionTimer.Start()
                                     refreshTimer.Stop()
 
-                                    'SendChatGame(String.Format("Hi Welcome to Dota {0} Hosting Service", frmLainEthLite.ProjectLainName))
-                                    'SendChat(String.Format("{0} Host - created by Leax", frmLainEthLite.ProjectLainVersion))
-                                    'SendChat(String.Format("Visit http://lainbot.tk for more info"))
                                     SendChat(loadAwards)
                                     SendChat(String.Format("Longest Load By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
 
