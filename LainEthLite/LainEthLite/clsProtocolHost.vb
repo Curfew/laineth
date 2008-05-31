@@ -188,10 +188,12 @@ Public Class clsHostPlayer
         If pingArray.Count < 5 Then
             retVal = -1
         Else
-            'retVal = CLng(retVal / 2) ' (divide by 2) to match LC style pings
+            If frmLainEthLite.LCpings = 255 Then
+                retVal = CLng(retVal / 2) ' (divide by 2) to match LC style pings
+            End If
         End If
 
-        Return retVal
+            Return retVal
     End Function
     'MrJag|0.8c|ping|function to add to the ping data
     Public Function SetPing(ByVal ping As Long) As Boolean

@@ -13,6 +13,10 @@ Public Class clsBotCommandClassifier
         VERSION
         GETGAMES
         MAP
+        RECONNECT 'Netrunner|0.1|txt revolution|
+        CHANNEL
+        ADDADMIN
+        REMOVEADMIN
 
         'lobby  
         START
@@ -57,7 +61,7 @@ Public Class clsBotCommandClassifier
 
             commandType = BotCommandType.INVALID
             For Each comm As clsBotCommandClassifier.BotCommandType In [Enum].GetValues(GetType(clsBotCommandClassifier.BotCommandType))
-                If param(0).ToLower = String.Format("-{0}", comm.ToString.ToLower()) Then
+                If param(0).ToLower = String.Format("{0}{1}", frmLainEthLite.CommandTrigger, comm.ToString.ToLower()) Then
                     commandType = comm
                     Exit For
                 End If
@@ -103,7 +107,7 @@ Public MustInherit Class clsBotCommand
     End Sub
     Protected Function IsTargeted(ByVal command As String) As Boolean
         Try
-            If command.StartsWith("-") Then
+            If command.StartsWith(frmLainEthLite.CommandTrigger) Then
                 Return True
             End If
             Return False
@@ -138,6 +142,10 @@ Public Class clsBotCommandHostChannel
     Public Event EventBotGetGames(ByVal isWhisper As Boolean, ByVal owner As String)
     Public Event EventBotMap(ByVal isWhisper As Boolean, ByVal owner As String, ByVal mapName As String)
 
+    Public Event EventBotToggleReconnect(ByVal toggle As Boolean)
+    Public Event EventBotChangeChannel(ByVal channelName As String)
+    Public Event EventBotModifyAdmin(ByVal name As String, ByVal add As Boolean)
+
     Public Sub New(ByVal adminName() As String)
         MyBase.New(adminName)
     End Sub
@@ -146,10 +154,11 @@ Public Class clsBotCommandHostChannel
         Dim command As clsBotCommandClassifier
         Dim game As String
         Dim caller As String
+        Dim channel As String
         Dim isWhisper As Boolean
         Dim i As Integer
-
         Try
+
             If data.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_TALK OrElse data.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_WHISPER Then
                 If IsTargeted(data.GetMessage) = False Then
                     Return False
@@ -159,7 +168,6 @@ Public Class clsBotCommandHostChannel
                     Return False
                 End If
                 isWhisper = (data.GetChatEvent = clsProtocolBNET.IncomingChatEvent.EID_WHISPER)
-
                 Select Case command.GetCommandType
                     Case clsBotCommandClassifier.BotCommandType.INVALID
                     Case clsBotCommandClassifier.BotCommandType.SAY
@@ -215,6 +223,50 @@ Public Class clsBotCommandHostChannel
                         RaiseEvent EventBotUnHost(isWhisper, data.GetUser)
                     Case clsBotCommandClassifier.BotCommandType.GETGAMES
                         RaiseEvent EventBotGetGames(isWhisper, data.GetUser)
+                        'Netrunner|0.1|root admin commands|
+                    Case clsBotCommandClassifier.BotCommandType.CHANNEL
+                        If command.commandParamameter.Length > 0 And CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin.ToLower Then
+                            channel = ""
+                            For i = 0 To command.commandParamameter.Length - 1
+                                channel = channel & command.commandParamameter(i) & " "
+                            Next
+                            RaiseEvent EventBotChangeChannel(channel)
+                        Else
+                            If CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin Then
+                                RaiseEvent EventBotResponse("!CHANNEL [channelname]", True, data.GetUser)
+                            End If
+                        End If
+                        'Netrunner|0.1|txt revolution|
+                    Case clsBotCommandClassifier.BotCommandType.RECONNECT
+                        If command.commandParamameter.Length = 1 And CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin.ToLower Then
+                            If command.commandParamameter(0).ToLower = "on" Then
+                                RaiseEvent EventBotToggleReconnect(True)
+                            ElseIf command.commandParamameter(0).ToLower = "off" Then
+                                RaiseEvent EventBotToggleReconnect(False)
+                            End If
+                        Else
+                            If CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin Then
+                                RaiseEvent EventBotResponse("!RECONNECT [on | off]", True, data.GetUser)
+                            End If
+                        End If
+                        'Netrunner|0.1|txt revolution|
+                    Case clsBotCommandClassifier.BotCommandType.ADDADMIN
+                        If command.commandParamameter.Length = 1 AndAlso CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin.ToLower Then
+                            RaiseEvent EventBotModifyAdmin(command.commandParamameter(0).ToLower, True)
+                        Else
+                            If CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin Then
+                                RaiseEvent EventBotResponse("!ADDADMIN [name]", True, data.GetUser)
+                            End If
+                        End If
+                        'Netrunner|0.1|txt revolution|
+                    Case clsBotCommandClassifier.BotCommandType.REMOVEADMIN
+                        If command.commandParamameter.Length = 1 And CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin.ToLower Then
+                            RaiseEvent EventBotModifyAdmin(command.commandParamameter(0).ToLower, False)
+                        Else
+                            If CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin Then
+                                RaiseEvent EventBotResponse("!REMOVEADMIN [name]", True, data.GetUser)
+                            End If
+                        End If
                     Case clsBotCommandClassifier.BotCommandType.MAP
                         If command.commandParamameter.Length > 0 Then
                             RaiseEvent EventBotMap(isWhisper, data.GetUser, command.GetPayLoad)

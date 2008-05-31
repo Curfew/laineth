@@ -87,6 +87,8 @@ Public Class clsGameHost
     Private listReferee As ArrayList
     Private reserveList As ArrayList
 
+    Private RefreshMessagePersonal As Boolean
+
 
     Private WithEvents protocol As clsProtocolHost
     Private WithEvents actionTimer As Timers.Timer
@@ -144,6 +146,11 @@ Public Class clsGameHost
         actionTimer = New Timers.Timer
         endTimer = New Timers.Timer
         refreshTimer = New Timers.Timer             'MrJag|0.8c|refresh|
+        If frmLainEthLite.RefreshMessage = 255 Then
+            RefreshMessagePersonal = True
+        Else
+            RefreshMessagePersonal = False
+        End If
     End Sub
     Public Sub New(ByVal adminName As String(), ByVal gameState As Byte, ByVal numPlayers As Integer, ByVal gameName As String, ByVal hostName As String, ByVal callerName As String, ByVal gamePort As Integer, ByVal mapPath As String, ByVal mapSize As Byte(), ByVal mapInfo As Byte(), ByVal mapCRC As Byte(), ByVal bnet As clsBNET)
 
@@ -372,12 +379,14 @@ Public Class clsGameHost
         Next
     End Sub
     Private Sub bnet_EventBnetSIDSTARTADVEX3Result(ByVal isOK As Boolean)
-        If isOK Then
-            'SendChat("Game Listing Refresh Successful...")
-            SendChat("Game Refreshed...")
-        Else
-            'SendChat("Game Listing Refresh Failed...")
-            SendChat("Error refreshing the game...")
+        If RefreshMessagePersonal = True Then
+            If isOK Then
+                'SendChat("Game Listing Refresh Successful...")
+                SendChat("Game Refreshed...")
+            Else
+                'SendChat("Game Listing Refresh Failed...")
+                SendChat("Error refreshing the game...")
+            End If
         End If
     End Sub
     Private Sub bnet_EventIncomingChat(ByVal eventChat As LainBnetCore.clsIncomingChatChannel)
@@ -453,11 +462,11 @@ Public Class clsGameHost
     Private Sub botLobby_EventBotToggleRefresh(ByVal enabled As Boolean) Handles botLobby.EventBotToggleRefresh
         Try
             If enabled Then
+                RefreshMessagePersonal = True
                 SendChat("Refresh enabled")
-                refreshTimer.Start()
             Else
+                RefreshMessagePersonal = False
                 SendChat("Refresh disabled")
-                refreshTimer.Stop()
             End If
         Catch ex As Exception
         End Try

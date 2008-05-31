@@ -7,6 +7,15 @@ Imports LainHelper
 
 Public Class frmLainEthLite
     Inherits System.Windows.Forms.Form
+    'Netrunner|0.11|txt revolution|
+    Public Shared MainChannel As String
+    Public Shared RootAdmin As String
+    Public Shared AccountName As String
+    Public Shared Reconnect As Byte
+    Public Shared LCpings As Byte
+    Public Shared Parameters As Integer
+    Public Shared CommandTrigger As String
+    Public Shared RefreshMessage As Byte
 
     Friend WithEvents menuLENP As System.Windows.Forms.MenuItem
     Friend WithEvents menuLENPServer As System.Windows.Forms.MenuItem
@@ -37,6 +46,14 @@ Public Class frmLainEthLite
     Private customData As clsBNETCustomData
 
     Private formLENPServer As frmLENPServer
+    Friend WithEvents botParam As System.Windows.Forms.GroupBox
+    Friend WithEvents CheckBox2 As System.Windows.Forms.CheckBox
+    Friend WithEvents CheckBox1 As System.Windows.Forms.CheckBox
+    Friend WithEvents TextBox1 As System.Windows.Forms.TextBox
+    Friend WithEvents Label1 As System.Windows.Forms.Label
+    Friend WithEvents TextBox2 As System.Windows.Forms.TextBox
+    Friend WithEvents Label2 As System.Windows.Forms.Label
+    Friend WithEvents CheckBox3 As System.Windows.Forms.CheckBox
     Private lenp As clsLENPServer
 
 
@@ -98,7 +115,6 @@ Public Class frmLainEthLite
     Friend WithEvents labelRealm As System.Windows.Forms.Label
     Friend WithEvents txtWar3 As System.Windows.Forms.TextBox
     Friend WithEvents listChannelPeople As System.Windows.Forms.ListBox
-    Friend WithEvents menuAutoReconnect As System.Windows.Forms.MenuItem
     Friend WithEvents labelHostPort As System.Windows.Forms.Label
     Friend WithEvents txtHostPort As System.Windows.Forms.TextBox
     Friend WithEvents groupUser As System.Windows.Forms.GroupBox
@@ -115,7 +131,6 @@ Public Class frmLainEthLite
         Dim resources As System.ComponentModel.ComponentResourceManager = New System.ComponentModel.ComponentResourceManager(GetType(frmLainEthLite))
         Me.menuMain = New System.Windows.Forms.MainMenu(Me.components)
         Me.menuFile = New System.Windows.Forms.MenuItem
-        Me.menuAutoReconnect = New System.Windows.Forms.MenuItem
         Me.menuConvertor = New System.Windows.Forms.MenuItem
         Me.menuExit = New System.Windows.Forms.MenuItem
         Me.menuLENP = New System.Windows.Forms.MenuItem
@@ -159,9 +174,18 @@ Public Class frmLainEthLite
         Me.buttonGameInfo = New System.Windows.Forms.Button
         Me.buttonGameStop = New System.Windows.Forms.Button
         Me.listGame = New System.Windows.Forms.ListBox
+        Me.botParam = New System.Windows.Forms.GroupBox
+        Me.CheckBox3 = New System.Windows.Forms.CheckBox
+        Me.Label2 = New System.Windows.Forms.Label
+        Me.TextBox2 = New System.Windows.Forms.TextBox
+        Me.CheckBox2 = New System.Windows.Forms.CheckBox
+        Me.CheckBox1 = New System.Windows.Forms.CheckBox
+        Me.TextBox1 = New System.Windows.Forms.TextBox
+        Me.Label1 = New System.Windows.Forms.Label
         Me.groupParam.SuspendLayout()
         Me.groupUser.SuspendLayout()
         Me.groupGame.SuspendLayout()
+        Me.botParam.SuspendLayout()
         Me.SuspendLayout()
         '
         'menuMain
@@ -171,22 +195,17 @@ Public Class frmLainEthLite
         'menuFile
         '
         Me.menuFile.Index = 0
-        Me.menuFile.MenuItems.AddRange(New System.Windows.Forms.MenuItem() {Me.menuAutoReconnect, Me.menuConvertor, Me.menuExit})
+        Me.menuFile.MenuItems.AddRange(New System.Windows.Forms.MenuItem() {Me.menuConvertor, Me.menuExit})
         Me.menuFile.Text = "File"
-        '
-        'menuAutoReconnect
-        '
-        Me.menuAutoReconnect.Index = 0
-        Me.menuAutoReconnect.Text = "Auto Reconnect"
         '
         'menuConvertor
         '
-        Me.menuConvertor.Index = 1
+        Me.menuConvertor.Index = 0
         Me.menuConvertor.Text = "Hexadecimal Convertor"
         '
         'menuExit
         '
-        Me.menuExit.Index = 2
+        Me.menuExit.Index = 1
         Me.menuExit.Text = "Exit"
         '
         'menuLENP
@@ -212,7 +231,7 @@ Public Class frmLainEthLite
         'contextShow
         '
         Me.contextShow.Index = 0
-        Me.contextShow.Text = "Show Game Host"
+        Me.contextShow.Text = "Show/Hide GHost"
         '
         'contextExit
         '
@@ -227,45 +246,37 @@ Public Class frmLainEthLite
         '
         'labelStatus
         '
-        Me.labelStatus.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.labelStatus.BackColor = System.Drawing.Color.DarkGray
         Me.labelStatus.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
         Me.labelStatus.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelStatus.Location = New System.Drawing.Point(0, 587)
+        Me.labelStatus.Location = New System.Drawing.Point(0, 524)
         Me.labelStatus.Name = "labelStatus"
-        Me.labelStatus.Size = New System.Drawing.Size(564, 21)
+        Me.labelStatus.Size = New System.Drawing.Size(731, 22)
         Me.labelStatus.TabIndex = 7
         '
         'txtChatLog
         '
-        Me.txtChatLog.Anchor = CType((((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-                    Or System.Windows.Forms.AnchorStyles.Left) _
-                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.txtChatLog.Font = New System.Drawing.Font("Microsoft Sans Serif", 7.8!, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
         Me.txtChatLog.Location = New System.Drawing.Point(7, 284)
         Me.txtChatLog.Multiline = True
         Me.txtChatLog.Name = "txtChatLog"
         Me.txtChatLog.ReadOnly = True
         Me.txtChatLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical
-        Me.txtChatLog.Size = New System.Drawing.Size(547, 255)
+        Me.txtChatLog.Size = New System.Drawing.Size(714, 192)
         Me.txtChatLog.TabIndex = 1
         Me.txtChatLog.Text = "======================" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "Chat Log" & Global.Microsoft.VisualBasic.ChrW(13) & Global.Microsoft.VisualBasic.ChrW(10) & "======================"
         '
         'txtChat
         '
-        Me.txtChat.Anchor = CType(((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left) _
-                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.txtChat.Location = New System.Drawing.Point(7, 546)
+        Me.txtChat.Location = New System.Drawing.Point(7, 483)
         Me.txtChat.Multiline = True
         Me.txtChat.Name = "txtChat"
-        Me.txtChat.Size = New System.Drawing.Size(494, 34)
+        Me.txtChat.Size = New System.Drawing.Size(661, 34)
         Me.txtChat.TabIndex = 3
         '
         'buttonChat
         '
-        Me.buttonChat.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.buttonChat.Location = New System.Drawing.Point(508, 546)
+        Me.buttonChat.Location = New System.Drawing.Point(675, 483)
         Me.buttonChat.Name = "buttonChat"
         Me.buttonChat.Size = New System.Drawing.Size(46, 34)
         Me.buttonChat.TabIndex = 4
@@ -273,22 +284,20 @@ Public Class frmLainEthLite
         '
         'buttonGo
         '
-        Me.buttonGo.Font = New System.Drawing.Font("Courier New", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.buttonGo.Location = New System.Drawing.Point(7, 7)
+        Me.buttonGo.Font = New System.Drawing.Font("Trebuchet MS", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.buttonGo.Location = New System.Drawing.Point(647, 222)
         Me.buttonGo.Name = "buttonGo"
-        Me.buttonGo.Size = New System.Drawing.Size(40, 243)
+        Me.buttonGo.Size = New System.Drawing.Size(241, 28)
         Me.buttonGo.TabIndex = 0
-        Me.buttonGo.Text = ":)"
+        Me.buttonGo.Text = "Start/Stop"
         '
         'labelChannel
         '
-        Me.labelChannel.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
-                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.labelChannel.BorderStyle = System.Windows.Forms.BorderStyle.Fixed3D
         Me.labelChannel.Font = New System.Drawing.Font("Courier New", 12.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
         Me.labelChannel.Location = New System.Drawing.Point(7, 257)
         Me.labelChannel.Name = "labelChannel"
-        Me.labelChannel.Size = New System.Drawing.Size(714, 19)
+        Me.labelChannel.Size = New System.Drawing.Size(881, 19)
         Me.labelChannel.TabIndex = 5
         Me.labelChannel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter
         '
@@ -300,7 +309,7 @@ Public Class frmLainEthLite
         Me.comboRealm.Items.AddRange(New Object() {"uswest.battle.net", "useast.battle.net", "asia.battle.net", "europe.battle.net"})
         Me.comboRealm.Location = New System.Drawing.Point(107, 49)
         Me.comboRealm.Name = "comboRealm"
-        Me.comboRealm.Size = New System.Drawing.Size(341, 21)
+        Me.comboRealm.Size = New System.Drawing.Size(200, 21)
         Me.comboRealm.TabIndex = 1
         Me.comboRealm.Text = "uswest.battle.net"
         '
@@ -373,7 +382,7 @@ Public Class frmLainEthLite
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.txtChannel.Location = New System.Drawing.Point(107, 187)
         Me.txtChannel.Name = "txtChannel"
-        Me.txtChannel.Size = New System.Drawing.Size(341, 20)
+        Me.txtChannel.Size = New System.Drawing.Size(200, 20)
         Me.txtChannel.TabIndex = 6
         Me.txtChannel.Text = "The Void"
         '
@@ -384,7 +393,7 @@ Public Class frmLainEthLite
         Me.txtPassword.Location = New System.Drawing.Point(107, 159)
         Me.txtPassword.Name = "txtPassword"
         Me.txtPassword.PasswordChar = Global.Microsoft.VisualBasic.ChrW(42)
-        Me.txtPassword.Size = New System.Drawing.Size(341, 20)
+        Me.txtPassword.Size = New System.Drawing.Size(200, 20)
         Me.txtPassword.TabIndex = 5
         Me.txtPassword.Text = "blacksheepwall"
         '
@@ -394,7 +403,7 @@ Public Class frmLainEthLite
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.txtAccount.Location = New System.Drawing.Point(107, 132)
         Me.txtAccount.Name = "txtAccount"
-        Me.txtAccount.Size = New System.Drawing.Size(341, 20)
+        Me.txtAccount.Size = New System.Drawing.Size(200, 20)
         Me.txtAccount.TabIndex = 4
         Me.txtAccount.Text = "lain"
         '
@@ -405,7 +414,7 @@ Public Class frmLainEthLite
         Me.txtTFT.Location = New System.Drawing.Point(107, 104)
         Me.txtTFT.MaxLength = 26
         Me.txtTFT.Name = "txtTFT"
-        Me.txtTFT.Size = New System.Drawing.Size(341, 20)
+        Me.txtTFT.Size = New System.Drawing.Size(200, 20)
         Me.txtTFT.TabIndex = 3
         Me.txtTFT.Text = "XXXXXXXXXXXXXXXXXXXXXXXXXX"
         '
@@ -416,7 +425,7 @@ Public Class frmLainEthLite
         Me.txtROC.Location = New System.Drawing.Point(107, 76)
         Me.txtROC.MaxLength = 26
         Me.txtROC.Name = "txtROC"
-        Me.txtROC.Size = New System.Drawing.Size(341, 20)
+        Me.txtROC.Size = New System.Drawing.Size(200, 20)
         Me.txtROC.TabIndex = 2
         Me.txtROC.Text = "XXXXXXXXXXXXXXXXXXXXXXXXXX"
         '
@@ -440,9 +449,9 @@ Public Class frmLainEthLite
         Me.groupParam.Controls.Add(Me.txtAccount)
         Me.groupParam.Controls.Add(Me.txtTFT)
         Me.groupParam.Controls.Add(Me.txtROC)
-        Me.groupParam.Location = New System.Drawing.Point(267, 7)
+        Me.groupParam.Location = New System.Drawing.Point(220, 7)
         Me.groupParam.Name = "groupParam"
-        Me.groupParam.Size = New System.Drawing.Size(454, 243)
+        Me.groupParam.Size = New System.Drawing.Size(314, 243)
         Me.groupParam.TabIndex = 0
         Me.groupParam.TabStop = False
         Me.groupParam.Text = "Wacraft Fronzen Throne Configuration"
@@ -453,7 +462,7 @@ Public Class frmLainEthLite
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.txtHostPort.Location = New System.Drawing.Point(107, 215)
         Me.txtHostPort.Name = "txtHostPort"
-        Me.txtHostPort.Size = New System.Drawing.Size(341, 20)
+        Me.txtHostPort.Size = New System.Drawing.Size(200, 20)
         Me.txtHostPort.TabIndex = 7
         Me.txtHostPort.Text = "6000"
         '
@@ -472,16 +481,15 @@ Public Class frmLainEthLite
                     Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.txtWar3.Location = New System.Drawing.Point(107, 21)
         Me.txtWar3.Name = "txtWar3"
-        Me.txtWar3.Size = New System.Drawing.Size(341, 20)
+        Me.txtWar3.Size = New System.Drawing.Size(200, 20)
         Me.txtWar3.TabIndex = 0
         Me.txtWar3.Text = "C:\Program Files\Warcraft III\"
         '
         'labelSummary
         '
-        Me.labelSummary.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.labelSummary.BackColor = System.Drawing.Color.DarkGray
         Me.labelSummary.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
-        Me.labelSummary.Location = New System.Drawing.Point(561, 546)
+        Me.labelSummary.Location = New System.Drawing.Point(727, 483)
         Me.labelSummary.Name = "labelSummary"
         Me.labelSummary.Size = New System.Drawing.Size(167, 62)
         Me.labelSummary.TabIndex = 9
@@ -489,11 +497,9 @@ Public Class frmLainEthLite
         '
         'listChannelPeople
         '
-        Me.listChannelPeople.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom) _
-                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
-        Me.listChannelPeople.Location = New System.Drawing.Point(561, 284)
+        Me.listChannelPeople.Location = New System.Drawing.Point(728, 284)
         Me.listChannelPeople.Name = "listChannelPeople"
-        Me.listChannelPeople.Size = New System.Drawing.Size(160, 225)
+        Me.listChannelPeople.Size = New System.Drawing.Size(160, 147)
         Me.listChannelPeople.TabIndex = 2
         '
         'groupUser
@@ -502,7 +508,7 @@ Public Class frmLainEthLite
         Me.groupUser.Controls.Add(Me.buttonUserAdd)
         Me.groupUser.Controls.Add(Me.txtUserName)
         Me.groupUser.Controls.Add(Me.listUser)
-        Me.groupUser.Location = New System.Drawing.Point(53, 7)
+        Me.groupUser.Location = New System.Drawing.Point(7, 7)
         Me.groupUser.Name = "groupUser"
         Me.groupUser.Size = New System.Drawing.Size(94, 243)
         Me.groupUser.TabIndex = 10
@@ -550,7 +556,7 @@ Public Class frmLainEthLite
         Me.groupGame.Controls.Add(Me.buttonGameInfo)
         Me.groupGame.Controls.Add(Me.buttonGameStop)
         Me.groupGame.Controls.Add(Me.listGame)
-        Me.groupGame.Location = New System.Drawing.Point(153, 7)
+        Me.groupGame.Location = New System.Drawing.Point(107, 7)
         Me.groupGame.Name = "groupGame"
         Me.groupGame.Size = New System.Drawing.Size(107, 243)
         Me.groupGame.TabIndex = 11
@@ -585,10 +591,100 @@ Public Class frmLainEthLite
         Me.listGame.Size = New System.Drawing.Size(93, 147)
         Me.listGame.TabIndex = 0
         '
+        'botParam
+        '
+        Me.botParam.Controls.Add(Me.CheckBox3)
+        Me.botParam.Controls.Add(Me.Label2)
+        Me.botParam.Controls.Add(Me.TextBox2)
+        Me.botParam.Controls.Add(Me.CheckBox2)
+        Me.botParam.Controls.Add(Me.CheckBox1)
+        Me.botParam.Controls.Add(Me.TextBox1)
+        Me.botParam.Controls.Add(Me.Label1)
+        Me.botParam.Location = New System.Drawing.Point(545, 7)
+        Me.botParam.Name = "botParam"
+        Me.botParam.Size = New System.Drawing.Size(342, 215)
+        Me.botParam.TabIndex = 12
+        Me.botParam.TabStop = False
+        Me.botParam.Text = "Bot Settings"
+        '
+        'CheckBox3
+        '
+        Me.CheckBox3.AutoSize = True
+        Me.CheckBox3.Checked = True
+        Me.CheckBox3.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.CheckBox3.Font = New System.Drawing.Font("Trebuchet MS", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.CheckBox3.Location = New System.Drawing.Point(6, 122)
+        Me.CheckBox3.Name = "CheckBox3"
+        Me.CheckBox3.Size = New System.Drawing.Size(158, 20)
+        Me.CheckBox3.TabIndex = 45
+        Me.CheckBox3.Text = "Lobby Refresh Message?"
+        Me.CheckBox3.UseVisualStyleBackColor = True
+        '
+        'Label2
+        '
+        Me.Label2.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label2.Location = New System.Drawing.Point(182, 47)
+        Me.Label2.Name = "Label2"
+        Me.Label2.Size = New System.Drawing.Size(108, 21)
+        Me.Label2.TabIndex = 44
+        Me.Label2.Text = "Command Trigger"
+        '
+        'TextBox2
+        '
+        Me.TextBox2.Location = New System.Drawing.Point(6, 48)
+        Me.TextBox2.Name = "TextBox2"
+        Me.TextBox2.Size = New System.Drawing.Size(170, 20)
+        Me.TextBox2.TabIndex = 43
+        Me.TextBox2.Text = "."
+        '
+        'CheckBox2
+        '
+        Me.CheckBox2.AutoSize = True
+        Me.CheckBox2.Checked = True
+        Me.CheckBox2.CheckState = System.Windows.Forms.CheckState.Checked
+        Me.CheckBox2.Font = New System.Drawing.Font("Trebuchet MS", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.CheckBox2.Location = New System.Drawing.Point(6, 98)
+        Me.CheckBox2.Name = "CheckBox2"
+        Me.CheckBox2.Size = New System.Drawing.Size(105, 20)
+        Me.CheckBox2.TabIndex = 42
+        Me.CheckBox2.Text = "LC Style Pings?"
+        Me.CheckBox2.UseVisualStyleBackColor = True
+        '
+        'CheckBox1
+        '
+        Me.CheckBox1.AutoSize = True
+        Me.CheckBox1.Font = New System.Drawing.Font("Trebuchet MS", 8.25!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.CheckBox1.Location = New System.Drawing.Point(6, 77)
+        Me.CheckBox1.Name = "CheckBox1"
+        Me.CheckBox1.Size = New System.Drawing.Size(134, 20)
+        Me.CheckBox1.TabIndex = 41
+        Me.CheckBox1.Text = "Reconnect on Disc?"
+        Me.CheckBox1.UseVisualStyleBackColor = True
+        '
+        'TextBox1
+        '
+        Me.TextBox1.Anchor = CType(((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Left) _
+                    Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.TextBox1.Location = New System.Drawing.Point(6, 22)
+        Me.TextBox1.Name = "TextBox1"
+        Me.TextBox1.Size = New System.Drawing.Size(170, 20)
+        Me.TextBox1.TabIndex = 39
+        Me.TextBox1.Text = "UberAdmin"
+        '
+        'Label1
+        '
+        Me.Label1.Font = New System.Drawing.Font("Trebuchet MS", 9.0!, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, CType(0, Byte))
+        Me.Label1.Location = New System.Drawing.Point(182, 21)
+        Me.Label1.Name = "Label1"
+        Me.Label1.Size = New System.Drawing.Size(93, 21)
+        Me.Label1.TabIndex = 40
+        Me.Label1.Text = "Root Admin"
+        '
         'frmLainEthLite
         '
         Me.AutoScaleBaseSize = New System.Drawing.Size(5, 13)
-        Me.ClientSize = New System.Drawing.Size(728, 606)
+        Me.ClientSize = New System.Drawing.Size(895, 547)
+        Me.Controls.Add(Me.botParam)
         Me.Controls.Add(Me.groupGame)
         Me.Controls.Add(Me.groupUser)
         Me.Controls.Add(Me.listChannelPeople)
@@ -600,14 +696,21 @@ Public Class frmLainEthLite
         Me.Controls.Add(Me.groupParam)
         Me.Controls.Add(Me.txtChat)
         Me.Controls.Add(Me.txtChatLog)
-        Me.Icon = CType(resources.GetObject("trayIcon.Icon"), System.Drawing.Icon)
+        Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle
+        Me.Icon = CType(resources.GetObject("$this.Icon"), System.Drawing.Icon)
+        Me.MaximizeBox = False
         Me.Menu = Me.menuMain
         Me.Name = "frmLainEthLite"
+        Me.ShowInTaskbar = False
+        Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+        Me.WindowState = System.Windows.Forms.FormWindowState.Minimized
         Me.groupParam.ResumeLayout(False)
         Me.groupParam.PerformLayout()
         Me.groupUser.ResumeLayout(False)
         Me.groupUser.PerformLayout()
         Me.groupGame.ResumeLayout(False)
+        Me.botParam.ResumeLayout(False)
+        Me.botParam.PerformLayout()
         Me.ResumeLayout(False)
         Me.PerformLayout()
 
@@ -625,18 +728,8 @@ Public Class frmLainEthLite
     Private Sub menuExit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles menuExit.Click
         ExitProgram()
     End Sub
-    Private Sub menuAutoReconnect_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles menuAutoReconnect.Click
-        If menuAutoReconnect.Checked = False Then
-            If bnet.IsSendChatAble Then
-                menuAutoReconnect.Checked = True
-                aliveTimer.Start()
-            Else
-                MessageBox.Show("Please Tick This Only After The Bot Is Logged On", ProjectLainVersion, MessageBoxButtons.OK, MessageBoxIcon.Information)
-            End If
-        Else
-            menuAutoReconnect.Checked = False
-            aliveTimer.Stop()
-        End If
+    Private Sub menuAutoReconnect_Click(ByVal sender As System.Object, ByVal e As System.EventArgs)
+
     End Sub
     Private Sub menuLENPServer_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles menuLENPServer.Click
         formLENPServer.Show()
@@ -680,7 +773,7 @@ Public Class frmLainEthLite
                     LoadUserTable(ds.Tables(ProjectLainUser))
                 End If
             Else
-                listUser.Items.Add("leax")
+                listUser.Items.Add("UberAdmin")
             End If
 
             ds = New DataSet(ProjectLainName)
@@ -828,15 +921,65 @@ Public Class frmLainEthLite
                 End If
                 If table.Columns.Contains("account") Then
                     txtAccount.Text = CStr(row("account"))
+                    AccountName = CStr(row("account"))
                 End If
                 If table.Columns.Contains("password") Then
                     txtPassword.Text = CStr(row("password"))
                 End If
                 If table.Columns.Contains("channel") Then
                     txtChannel.Text = CStr(row("channel"))
+                    MainChannel = CStr(row("channel"))
                 End If
                 If table.Columns.Contains("hostport") Then
                     txtHostPort.Text = CStr(row("hostport"))
+                End If
+
+                If table.Columns.Contains("commandtrigger") Then
+                    TextBox2.Text = CStr(row("commandtrigger"))
+                    CommandTrigger = CStr(row("commandtrigger"))
+                Else
+                    TextBox2.Text = "."
+                    CommandTrigger = "."
+                End If
+                If table.Columns.Contains("refreshmessage") Then
+                    RefreshMessage = CByte(row("refreshmessage"))
+                    If CStr(row("refreshmessage")) = CStr(255) Then
+                        CheckBox3.Checked = True
+                    Else
+                        CheckBox3.Checked = False
+                    End If
+                Else
+                    RefreshMessage = 255
+                    CheckBox3.Checked = True
+                End If
+                If table.Columns.Contains("rootadmin") Then
+                    RootAdmin = CStr(row("rootadmin"))
+                    TextBox1.Text = CStr(row("rootadmin"))
+                Else
+                    RootAdmin = "UberAdmin"
+                    TextBox1.Text = "UberAdmin"
+                End If
+                If table.Columns.Contains("reconnect") Then
+                    Reconnect = CByte(row("reconnect"))
+                    If CStr(row("reconnect")) = CStr(255) Then
+                        CheckBox1.Checked = True
+                    Else
+                        CheckBox1.Checked = False
+                    End If
+                Else
+                    Reconnect = 255
+                    CheckBox1.Checked = True
+                End If
+                If table.Columns.Contains("lcpings") Then
+                    LCpings = CByte(row("lcpings"))
+                    If CStr(row("lcpings")) = CStr(255) Then
+                        CheckBox2.Checked = True
+                    Else
+                        CheckBox2.Checked = False
+                    End If
+                Else
+                    LCpings = 255
+                    CheckBox2.Checked = True
                 End If
                 Return True
             End If
@@ -882,7 +1025,6 @@ Public Class frmLainEthLite
         End Try
     End Function
     Private Function SaveConfigurationTable() As DataTable
-
         Dim table As DataTable
         Dim column As DataColumn
         Dim row As DataRow
@@ -906,15 +1048,34 @@ Public Class frmLainEthLite
             column = New DataColumn("hostport", GetType(String))
             table.Columns.Add(column)
 
+
+
+            column = New DataColumn("rootadmin", GetType(String))
+            table.Columns.Add(column)
+            column = New DataColumn("reconnect", GetType(String))
+            table.Columns.Add(column)
+            column = New DataColumn("lcpings", GetType(String))
+            table.Columns.Add(column)
+            column = New DataColumn("commandtrigger", GetType(String))
+            table.Columns.Add(column)
+            column = New DataColumn("refreshmessage", GetType(String))
+            table.Columns.Add(column)
+
             row = table.NewRow
             row("war3path") = txtWar3.Text
             row("realm") = comboRealm.Text
             row("ROCkey") = txtROC.Text
             row("TFTkey") = txtTFT.Text
-            row("account") = txtAccount.Text
+            row("account") = AccountName
             row("password") = txtPassword.Text
-            row("channel") = txtChannel.Text
+            row("channel") = MainChannel
             row("hostport") = txtHostPort.Text
+
+            row("rootadmin") = RootAdmin
+            row("reconnect") = Reconnect
+            row("lcpings") = LCpings
+            row("commandtrigger") = CommandTrigger
+            row("refreshmessage") = RefreshMessage
 
             table.Rows.Add(row)
 
@@ -1104,6 +1265,44 @@ Public Class frmLainEthLite
             End If
         End If
     End Sub
+    'Netrunner|0.1|root admin commands|
+    Private Sub bot_EventToggleReconnect(ByVal toggle As Boolean) Handles bot.EventBotToggleReconnect
+        If toggle = True Then
+            Reconnect = 255
+            CheckBox1.Checked = True
+            SendChat(String.Format("/w {0} Reconnect is ON", RootAdmin))
+        Else
+            Reconnect = 0
+            CheckBox1.Checked = False
+            SendChat(String.Format("/w {0} Reconnect is OFF", RootAdmin))
+        End If
+    End Sub
+    'Netrunner|0.1|root admin commands|
+    Private Sub bot_EventChangeChannel(ByVal channelName As String) Handles bot.EventBotChangeChannel
+        MainChannel = channelName
+        bnet.SendChatToQueue(New clsBNETChatMessage(String.Format("/channel {0}", channelName), AccountName, False))
+        SendChat(String.Format("/w {0} Moved to channel {1}", RootAdmin, MainChannel))
+    End Sub
+    'Netrunner|0.1|root admin commands|
+    Private Sub bot_EventModifyAdmin(ByVal name As String, ByVal add As Boolean) Handles bot.EventBotModifyAdmin
+        If add = True Then
+            If name.Length > 0 AndAlso listUser.Items.Contains(name) = False Then
+                listUser.Items.Add(name)
+                SaveUserTable()
+                SendChat(String.Format("/w {0} {1} is an admin now.", RootAdmin, name))
+            Else
+                SendChat(String.Format("/w {0} {1} is already an admin.", RootAdmin, name))
+            End If
+        Else
+            If name.Length > 0 AndAlso listUser.Items.Contains(name) Then
+                listUser.Items.Remove(name)
+                SaveUserTable()
+                SendChat(String.Format("/w {0} {1} is no longer an admin.", RootAdmin, name))
+            Else
+                SendChat(String.Format("/w {0} {1} was never an admin.", RootAdmin, name))
+            End If
+        End If
+    End Sub
     Private Sub bot_EventBotUnHost(ByVal isWhisper As Boolean, ByVal owner As String) Handles bot.EventBotUnHost
         Dim gamename As String
         Dim result As String
@@ -1169,7 +1368,6 @@ Public Class frmLainEthLite
         txtChatLog.AppendText(Environment.NewLine)
         trayIcon.ContextMenu = contextMain
         trayIcon.Text = ProjectLainVersion
-        trayIcon.Visible = True
         Me.ReflectEngineState()
         Me.buttonGo.Focus()
 
@@ -1183,6 +1381,17 @@ Public Class frmLainEthLite
         formLENPServer = New frmLENPServer
         lenp = New clsLENPServer(listHost)
 
+        Dim ResultFromParams = ParseCommandLineArgs()
+        If CBool((1 And ResultFromParams)) Then 'no gui its hidden
+            toggleGUI()
+            If CBool((10 And ResultFromParams)) Then 'also no trayicon
+                Me.trayIcon.Visible = False
+            End If
+            Start()
+        Else
+            Me.WindowState = System.Windows.Forms.FormWindowState.Normal
+            Me.trayIcon.Visible = True
+        End If
     End Sub
     Private Sub frmLainEthLite_Closing(ByVal sender As Object, ByVal e As System.ComponentModel.CancelEventArgs) Handles MyBase.Closing
         e.Cancel = True
@@ -1240,22 +1449,69 @@ Public Class frmLainEthLite
         contextShow_Click("trayIcon_DoubleClick", New EventArgs)
     End Sub
     Private Sub contextShow_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles contextShow.Click
-        Me.Visible = True
-        Me.WindowState = FormWindowState.Normal
-        Me.BringToFront()
+        If Me.Visible = False Then
+            Me.Show()
+            Me.WindowState = FormWindowState.Normal
+            Me.BringToFront()
+        Else
+            Me.Hide()
+        End If
     End Sub
     Private Sub contextExit_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles contextExit.Click
         ExitProgram()
     End Sub
     Private Sub buttonGo_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles buttonGo.Click
+        toggleGUI()
+        SaveAll()
         Start()
     End Sub
+    'Netrunner|0.1|console mode|
+    Private Function ParseCommandLineArgs() As Integer
+        '  Invoke this sample with an arbitrary set of command line arguments.
+        Dim arguments As [String]() = Environment.GetCommandLineArgs()
 
+        '''''''''
+        Dim inputArgument As String = "-"
+        Dim bits As Integer = 0
+
+        For Each s As String In arguments
+            If s.ToLower.StartsWith(inputArgument) AndAlso s.ToLower() = "-nogui" AndAlso CBool((1 And bits)) = False Then
+                bits += 1
+            End If
+            If s.ToLower.StartsWith(inputArgument) AndAlso s.ToLower() = "-notrayicon" AndAlso CBool((10 And bits)) = False Then
+                bits += 2
+            End If
+        Next
+        Return bits
+    End Function
+    'Netrunner|0.1|gui enhancements|
+    Private Sub toggleGUI()
+        If groupParam.Enabled = True Then
+            buttonUserAdd.Enabled = False
+            buttonUserRemove.Enabled = False
+            txtUserName.Enabled = False
+            groupParam.Enabled = False
+            botParam.Enabled = False
+        Else
+            buttonUserAdd.Enabled = True
+            buttonUserRemove.Enabled = True
+            txtUserName.Enabled = True
+            groupParam.Enabled = True
+            botParam.Enabled = True
+        End If
+    End Sub
     Private Function Start() As Boolean
         Try
+
             If bnet.IsEngineRunning() Then
                 bnet.Stop()
+                aliveTimer.Stop()
             Else
+                'Netrunner|0.1|root admin commands|
+                If Reconnect = 255 Then
+                    aliveTimer.Start()
+                End If
+
                 listChannelPeople.Invoke(New clsHelper.DelegateControlListBoxDataSource(AddressOf clsHelper.ControlListBoxDataSource), New Object() {listChannelPeople, New Object() {}})
                 labelSummary.Invoke(New clsHelper.DelegateControlText(AddressOf clsHelper.ControlText), New Object() {labelSummary, "Connecting to BattleNET..."})
 
@@ -1323,7 +1579,7 @@ Public Class frmLainEthLite
         txtChannel.Invoke(New clsHelper.DelegateControlTextBoxReadOnly(AddressOf clsHelper.ControlTextBoxReadOnly), New Object() {txtChannel, lock})
         txtHostPort.Invoke(New clsHelper.DelegateControlTextBoxReadOnly(AddressOf clsHelper.ControlTextBoxReadOnly), New Object() {txtHostPort, lock})
         listChannelPeople.Invoke(New clsHelper.DelegateControlEnabled(AddressOf clsHelper.ControlEnabled), New Object() {listChannelPeople, lock})
-        listUser.Invoke(New clsHelper.DelegateControlEnabled(AddressOf clsHelper.ControlEnabled), New Object() {listUser, Not lock})
+        'listUser.Invoke(New clsHelper.DelegateControlEnabled(AddressOf clsHelper.ControlEnabled), New Object() {listUser, Not lock})
         txtUserName.Invoke(New clsHelper.DelegateControlTextBoxReadOnly(AddressOf clsHelper.ControlTextBoxReadOnly), New Object() {txtUserName, lock})
         buttonUserAdd.Invoke(New clsHelper.DelegateControlEnabled(AddressOf clsHelper.ControlEnabled), New Object() {buttonUserAdd, Not lock})
         buttonUserRemove.Invoke(New clsHelper.DelegateControlEnabled(AddressOf clsHelper.ControlEnabled), New Object() {buttonUserRemove, Not lock})
@@ -1340,7 +1596,6 @@ Public Class frmLainEthLite
             SaveAll()
             bnet.Stop()
             Me.Enabled = False
-            Me.Visible = True
             trayIcon.Visible = False
             Me.Dispose()
         Catch ex As Exception
@@ -1452,13 +1707,43 @@ Public Class frmLainEthLite
         Return lenp
     End Function
 
+    'Netrunner|0.1|txt revolution|
+    Private Sub TextBox1_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles TextBox1.TextChanged
+        RootAdmin = TextBox1.Text
+    End Sub
+    'Netrunner|0.1|txt revolution|
+    Private Sub CheckBox1_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CheckBox1.CheckedChanged
+        If CheckBox1.Checked = True Then
+            Reconnect = 255
+        Else
+            Reconnect = 0
+        End If
+    End Sub
+    'Netrunner|0.1|txt revolution|
+    Private Sub txtChannel_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtChannel.TextChanged
+        MainChannel = txtChannel.Text
+    End Sub
 
+    Private Sub txtAccount_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles txtAccount.TextChanged
+        AccountName = txtAccount.Text
+    End Sub
+    Private Sub TextBox2_TextChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles TextBox2.TextChanged
+        CommandTrigger = TextBox2.Text.Substring(0, 1)
+        TextBox2.Text = TextBox2.Text.Substring(0, 1)
+    End Sub
+    Private Sub CheckBox3_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CheckBox3.CheckedChanged
+        If CheckBox3.Checked = True Then
+            RefreshMessage = 255
+        Else
+            RefreshMessage = 0
+        End If
+    End Sub
 
+    Private Sub CheckBox2_CheckedChanged(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles CheckBox2.CheckedChanged
+        If CheckBox2.Checked = True Then
+            LCpings = 255
+        Else
+            LCpings = 0
+        End If
+    End Sub
 End Class
-
-
-
-
-
-
-
