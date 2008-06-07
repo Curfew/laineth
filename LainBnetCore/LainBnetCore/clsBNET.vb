@@ -143,27 +143,27 @@ Public Class clsBNET
 #Region "sock"
 
 
-    Private Sub sockBNET_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal client As clsSocket)
+    Private Sub sockBNET_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal client As clsSocketTCP)
         RaiseEvent EventError(errorFunction, errorString)
         RaiseEvent EventMessage(clsCommandPacket.PacketType.BNET, "CONNECTION to Battle.Net ERROR : " & errorString)
         [Stop]()
     End Sub
-    Private Sub sockBNET_OnEventMessage(ByVal socketEvent As clsSocket.SocketEvent, ByVal socket As clsSocket)
+    Private Sub sockBNET_OnEventMessage(ByVal socketEvent As clsSocketTCP.SocketEvent, ByVal data As Object, ByVal socket As clsSocketTCP)
         Dim dataQ As Queue
         Dim mutex As Mutex
         Try
             Select Case socketEvent
-                Case clsSocket.SocketEvent.ConnectionClosedByPeer
+                Case clsSocketTCP.SocketEvent.ConnectionClosed
                     RaiseEvent EventMessage(clsCommandPacket.PacketType.BNET, "CONNECTION to Battle.Net is CLOSED")
                     [Stop]()
-                Case clsSocket.SocketEvent.ConnectionFailed
+                Case clsSocketTCP.SocketEvent.ConnectionFailed
                     RaiseEvent EventMessage(clsCommandPacket.PacketType.BNET, "FAILED to CONNECT to Battle.Net")
                     [Stop]()
-                Case clsSocket.SocketEvent.ConnectionEstablished
+                Case clsSocketTCP.SocketEvent.ConnectionEstablished
                     RaiseEvent EventMessage(clsCommandPacket.PacketType.BNET, "SUCCESFULLY CONNECTED to Battle.Net")
                     TrySend(sockBNET, bnet.SEND_PROTOCOL_INITIALIZE_SELECTOR, clsCommandPacket.PacketType.BNET, "PROTOCOL_INITIALIZE_SELECTOR")
                     TrySend(sockBNET, bnet.SEND_SID_AUTH_INFO, clsCommandPacket.PacketType.BNET, "SID_AUTH_INFO")
-                Case clsSocket.SocketEvent.DataArrival
+                Case clsSocketTCP.SocketEvent.DataArrival
                     mutex = New Mutex(False, String.Format("mutex-DataArrival-{0}", Me.GetHashCode)) 'differnt class instance process will run parrallel, same class instance will wait for mutex
                     mutex.WaitOne()
                     dataQ = sockBNET.GetReceiveQueue
@@ -575,7 +575,7 @@ Public Class clsBNET
 
             chatTimer.Start()
 
-            If sockBNET.Connect(clsSocket.GetFirstIP(bnetServer), 6112) = False Then
+            If sockBNET.Connect(clsSocketTCP.GetFirstIP(bnetServer), 6112) = False Then
                 [Stop]()
             End If
 

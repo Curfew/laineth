@@ -244,27 +244,27 @@ Public Class clsGameHost
     End Function
 
 #Region "sock event"
-    Private Sub sockServer_OnEventMessage(ByVal socketEvent As clsSocket.SocketEvent, ByVal socket As clsSocket)
+    Private Sub sockServer_OnEventMessage(ByVal socketEvent As clsSocketTCP.SocketEvent, ByVal data As Object, ByVal socket As clsSocketTCP)
         Dim client As clsSocketTCPClient
         Try
             Select Case socketEvent
-                Case clsSocket.SocketEvent.ConnectionAccepted
+                Case clsSocketTCP.SocketEvent.ConnectionAccepted
                     client = CType(socket, clsSocketTCPClient) 'New clsSocketTCPClient    'CType(socket, clsSocketTCPClient)
-                    AddHandler client.eventMessage, AddressOf client_OnEventMessage
-                    AddHandler client.eventError, AddressOf client_OnEventError
+                    AddHandler client.EventMessage, AddressOf client_OnEventMessage
+                    AddHandler client.EventError, AddressOf client_OnEventError
 
                     hashClient.Add(client, ArrayList.Synchronized(New ArrayList))
-                    client_OnEventMessage(clsSocket.SocketEvent.DataArrival, client)  'force a data arrival event
+                    client_OnEventMessage(clsSocketTCP.SocketEvent.DataArrival, New Byte() {}, client)  'force a data arrival event
             End Select
         Catch ex As Exception
             Debug.WriteLine(ex)
         End Try
 
     End Sub
-    Private Sub sockServer_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
+    Private Sub sockServer_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocketTCP)
         HostStop()
     End Sub
-    Private Sub client_OnEventMessage(ByVal socketEvent As clsSocket.SocketEvent, ByVal socket As clsSocket)
+    Private Sub client_OnEventMessage(ByVal socketEvent As clsSocketTCP.SocketEvent, ByVal data As Object, ByVal socket As clsSocketTCP)
         Dim dataQ As Queue
         Dim client As clsSocketTCPClient
         Dim mutexPackageGamePacket As Mutex
@@ -272,12 +272,12 @@ Public Class clsGameHost
         Try
             client = CType(socket, clsSocketTCPClient)
             Select Case socketEvent
-                Case clsSocket.SocketEvent.ConnectionClosedByPeer
+                Case clsSocketTCP.SocketEvent.ConnectionClosed
                     ClientStop(client)
-                Case clsSocket.SocketEvent.ConnectionFailed
+                Case clsSocketTCP.SocketEvent.ConnectionFailed
                     ClientStop(client)
-                Case clsSocket.SocketEvent.ConnectionEstablished
-                Case clsSocket.SocketEvent.DataArrival
+                Case clsSocketTCP.SocketEvent.ConnectionEstablished
+                Case clsSocketTCP.SocketEvent.DataArrival
                     If hashClient.Contains(client) Then
 
                         mutexPackageGamePacket = New Mutex(False, String.Format("mutex-PackageGamePacket-{0}", client.GetHashCode)) 'lock when same socket instance comes in
@@ -301,8 +301,8 @@ Public Class clsGameHost
         End Try
 
     End Sub
-    Private Sub client_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
-        SendChat(String.Format("{0} pulled the plug.", protocol.GetPlayerFromSocket(CType(socket, clsSocketTCPClient)).GetName))
+    Private Sub client_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocketTCP)
+        SendChat(String.Format("TCP Socket ERROR detected for {0}.", protocol.GetPlayerFromSocket(CType(socket, clsSocketTCPClient)).GetName))
         ClientStop(CType(socket, clsSocketTCPClient))
     End Sub
 #End Region

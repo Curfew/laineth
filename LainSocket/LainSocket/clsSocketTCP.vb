@@ -3,28 +3,18 @@ Option Strict On
 
 Imports System.Net
 Imports System.Net.Sockets
-Imports System.Threading
-
 
 Public Class clsSocketData
-    Protected buffer As Byte()
-    Protected sock As Socket
-    Protected endPoint As IPEndPoint
+    Private buffer As Byte()
+    Private sock As Socket
 
     Public Sub New(ByVal socket As Socket)
         sock = socket
         buffer = New Byte(2048 - 1) {}
-        endPoint = New IPEndPoint(IPAddress.Any, 0)
     End Sub
-    Public Sub New(ByVal socket As Socket, ByVal point As IPEndPoint)
-        sock = socket
-        buffer = New Byte(2048 - 1) {}
-        endPoint = point
-    End Sub
-    Public Sub New(ByVal socket As Socket, ByVal data As Byte(), ByVal point As IPEndPoint)
+    Public Sub New(ByVal socket As Socket, ByVal data As Byte())
         sock = socket
         buffer = data
-        endPoint = point
     End Sub
 
     Public Function GetBuffer() As Byte()
@@ -33,33 +23,15 @@ Public Class clsSocketData
     Public Function GetSocket() As Socket
         Return sock
     End Function
-    Public Function GetEndPoint() As IPEndPoint
-        Return endPoint
-    End Function
 End Class
-
-Public MustInherit Class clsSocket
+Public MustInherit Class clsSocketTCP
     Public Enum SocketEvent
         ConnectionEstablished
         ConnectionAccepted
         ConnectionFailed
-        ConnectionClosedByPeer
-        SocketDispose
+        ConnectionClosed
         DataArrival
     End Enum
-
-    Private socketDisposed As Boolean
-
-    Public Event eventMessage(ByVal socketEvent As SocketEvent, ByVal socket As clsSocket)
-    Public Event eventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
-
-    Protected Sub New()
-        socketDisposed = False
-    End Sub
-
-    Public Function IsDisposed() As Boolean
-        Return socketDisposed
-    End Function
 
     Public Shared Function ConvertIP(ByVal ip As String) As Byte()
         Dim octets As String()
@@ -105,162 +77,24 @@ Public MustInherit Class clsSocket
             Return New String() {}
         End Try
     End Function
-
-
-    Protected Sub RaiseEventMessage(ByVal socketEvent As SocketEvent, ByVal socket As clsSocket)
-        If IsDisposed() = False Then
-            RaiseEvent eventMessage(socketEvent, socket)
-        End If
-
-        If socketEvent = clsSocket.SocketEvent.SocketDispose Then
-            socketDisposed = True
-        End If
-    End Sub
-    Protected Sub RaiseEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
-        If IsDisposed() = False Then
-            RaiseEvent eventError(errorFunction, errorString, socket)
-        End If
-
-    End Sub
 End Class
 
-#Region "UDP/IP"
-Public Class clsSocketUDP
-    Inherits clsSocket
-
-    Private sock As Socket
-
-    Private bufferReceiveQueue As Queue
-    Private bufferSendQueue As Queue
-    Private receiveSockData As clsSocketData
-
-    Public Sub New()
-
-        sock = New Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
-        sock.Bind(New IPEndPoint(IPAddress.Any, 0))
-        sock.Blocking = True
-        sock.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, True)
-
-        bufferReceiveQueue = Queue.Synchronized(New Queue)
-        bufferSendQueue = Queue.Synchronized(New Queue)
-
-        receiveSockData = New clsSocketData(sock)
-    End Sub
-    Public Sub New(ByVal port As Integer)
-
-        sock = New Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
-        sock.Bind(New IPEndPoint(IPAddress.Any, port))
-        sock.Blocking = True
-        sock.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Broadcast, True)
-
-        bufferReceiveQueue = Queue.Synchronized(New Queue)
-        bufferSendQueue = Queue.Synchronized(New Queue)
-
-        receiveSockData = New clsSocketData(sock, New IPEndPoint(IPAddress.Any, port))
-        Receive()
-    End Sub
-    Public Function Dispose() As Boolean
-        Try
-            sock.Close()
-            Return True
-        Catch ex As Exception
-            Return False
-        End Try
-    End Function
-
-    Public Function Send(ByVal IP As String, ByVal port As Integer, ByVal data As Byte()) As Boolean
-        Dim sockData As clsSocketData
-        Dim thread As Thread
-        Try
-            sockData = New clsSocketData(sock, data, New IPEndPoint(IPAddress.Parse(IP), port))
-            bufferSendQueue.Enqueue(sockData)
-            thread = New Thread(AddressOf SendThread)
-            thread.Start()
-
-            Return True
-        Catch ex As Exception
-            RaiseEventError("Send", ex.ToString, Me)
-            Return False
-        End Try
-    End Function
-    Private Sub SendThread()
-        Dim sockData As clsSocketData
-        Dim mutexSend As Mutex
-
-        mutexSend = New Mutex(False, String.Format("mutexsend-{0}", sock.GetHashCode)) 'lock when sock is sending
-        mutexSend.WaitOne()
-        Try
-            If bufferSendQueue.Count > 0 Then
-                sockData = CType(bufferSendQueue.Dequeue, clsSocketData)
-                sock.SendTo(sockData.GetBuffer, 0, sockData.GetBuffer().Length, SocketFlags.None, sockData.GetEndPoint)
-            End If
-        Catch ex As Exception
-            RaiseEventError("SendThread", ex.ToString, Me)
-        Finally
-            mutexSend.ReleaseMutex()
-        End Try
-    End Sub
-
-    Private Function Receive() As Boolean
-        Dim thread As Thread
-        Try
-            thread = New Thread(AddressOf ReceiveThread)
-            thread.Start()
-
-            Return True
-        Catch ex As Exception
-            RaiseEventError("Receive", ex.ToString, Me)
-            Return False
-        End Try
-    End Function
-    Private Sub ReceiveThread()
-        Dim sockData As clsSocketData
-        Dim receiveSize As Integer
-        Dim i As Integer
-        Try
-            While (Not IsDisposed())
-                sockData = New clsSocketData(sock)
-                receiveSize = sock.ReceiveFrom(sockData.GetBuffer(), sockData.GetBuffer().Length, SocketFlags.None, receiveSockData.GetEndPoint)
-
-                If receiveSize > 0 Then
-                    SyncLock bufferReceiveQueue.SyncRoot()
-                        For i = 0 To receiveSize - 1
-                            bufferReceiveQueue.Enqueue(sockData.GetBuffer()(i))
-                        Next
-                    End SyncLock
-                    RaiseEventMessage(SocketEvent.DataArrival, Me)
-                Else
-                    RaiseEventMessage(SocketEvent.ConnectionClosedByPeer, Me)
-                    Exit While
-                End If
-            End While
-        Catch ex As Exception
-            RaiseEventError("ReceiveThread", ex.ToString, Me)
-        End Try
-    End Sub
-
-
-End Class
-#End Region
-
-#Region "TCP/IP"
 Public Class clsSocketTCPClient
-    Inherits clsSocket
+    Inherits clsSocketTCP
 
     Private client As Socket
     Private bufferReceiveQueue As Queue
     Private bufferSendQueue As Queue
-    Private connectSockData As clsSocketData
+    Private sendingInProgress As Boolean
 
+    Public Event EventMessage(ByVal socketEvent As SocketEvent, ByVal data As Object, ByVal socket As clsSocketTCP)
+    Public Event EventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocketTCP)
 
     Public Sub New()
         client = New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
-        client.Blocking = True
-
+        sendingInProgress = False
         bufferReceiveQueue = Queue.Synchronized(New Queue)
         bufferSendQueue = Queue.Synchronized(New Queue)
-
-        connectSockData = New clsSocketData(client)
     End Sub
 
     Public Function GetLocalIP() As Byte()
@@ -270,6 +104,7 @@ Public Class clsSocketTCPClient
             End If
             Return New Byte() {}
         Catch ex As Exception
+            Debug.WriteLine(ex)
             Return New Byte() {}
         End Try
     End Function
@@ -280,21 +115,26 @@ Public Class clsSocketTCPClient
             End If
             Return New Byte() {}
         Catch ex As Exception
+            Debug.WriteLine(ex)
             Return New Byte() {}
         End Try
 
     End Function
+
     Public Function IsConnected() As Boolean
         Try
             Return client.Connected
         Catch ex As Exception
+            Debug.WriteLine(ex)
             Return False
         End Try
     End Function
 
+
     Public Function GetReceiveQueue() As Queue
         Return bufferReceiveQueue
     End Function
+
     Public Function GetSendQueue() As Queue
         Return bufferSendQueue
     End Function
@@ -302,131 +142,166 @@ Public Class clsSocketTCPClient
     Public Function Dispose() As Boolean
         Try
             client.Close()
+            Return True
+        Catch ex As Exception
+            Debug.WriteLine("Dispose")
+            Return False
+        End Try
+    End Function
+    Public Function [Stop]() As Boolean
+        Try
+            If client.Connected Then
+                client.Shutdown(SocketShutdown.Send)
+            End If
 
             Return True
         Catch ex As Exception
+            Debug.WriteLine("[Stop]")
             Return False
-        Finally
-            RaiseEventMessage(SocketEvent.SocketDispose, Me)
         End Try
     End Function
     Public Function Accept(ByVal sock As Socket) As clsSocketTCPClient
         Try
+            [Stop]()
             client = sock
             If client.Connected = True Then
-                RaiseEventMessage(SocketEvent.ConnectionEstablished, Me)
-                Receive()
+                RaiseEvent EventMessage(SocketEvent.ConnectionEstablished, "Client is connected", Me)
+                BeginReceive()
             Else
-                RaiseEventMessage(SocketEvent.ConnectionFailed, Me)
+                RaiseEvent EventMessage(SocketEvent.ConnectionFailed, "Client failed to accept connection", Me)
             End If
             Return Me
         Catch ex As Exception
+            Debug.WriteLine(ex)
             Return Nothing
         End Try
     End Function
-
-    Private Function Receive() As Boolean
-        Dim thread As Thread
-        Try
-            thread = New Thread(AddressOf ReceiveThread)
-            thread.Start()
-
-            Return True
-        Catch ex As Exception
-            RaiseEventError("Receive", ex.ToString, Me)
-            Return False
-        End Try
-    End Function
-    Private Sub ReceiveThread()
-        Dim sockData As clsSocketData
-        Dim receiveSize As Integer
-        Dim i As Integer
-        Try
-
-            While (Not IsDisposed())
-                sockData = New clsSocketData(client)
-                receiveSize = client.Receive(sockData.GetBuffer(), sockData.GetBuffer().Length, SocketFlags.None)
-
-                If receiveSize > 0 Then
-                    SyncLock bufferReceiveQueue.SyncRoot()
-                        For i = 0 To receiveSize - 1
-                            bufferReceiveQueue.Enqueue(sockData.GetBuffer()(i))
-                        Next
-                    End SyncLock
-                    RaiseEventMessage(SocketEvent.DataArrival, Me)
-                Else
-                    RaiseEventMessage(SocketEvent.ConnectionClosedByPeer, Me)
-                    Exit While
-                End If
-            End While
-        Catch ex As Exception
-            RaiseEventError("ReceiveThread", ex.ToString, Me)
-        End Try
-    End Sub
-
     Public Function Connect(ByVal IP As String, ByVal port As Integer) As Boolean
-        Dim thread As Thread
         Try
             If IP.Length > 0 Then
-                connectSockData = New clsSocketData(client, New IPEndPoint(IPAddress.Parse(IP), port))
-
-                thread = New Thread(AddressOf ConnectThread)
-                thread.Start()
+                [Stop]()
+                client = New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+                client.Blocking = False
+                client.BeginConnect(New IPEndPoint(IPAddress.Parse(IP), port), New AsyncCallback(AddressOf CallBackConnect), Me)
                 Return True
             End If
             Return False
         Catch ex As Exception
+            Debug.WriteLine(ex)
             Return False
         End Try
     End Function
-    Private Sub ConnectThread()
-        Try
-            client = New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
-            client.Blocking = True
-            client.Connect(connectSockData.GetEndPoint)
-
-            If client.Connected = True Then
-                RaiseEventMessage(SocketEvent.ConnectionEstablished, Me)
-                Receive()
-            Else
-                RaiseEventMessage(SocketEvent.ConnectionFailed, Me)
-            End If
-        Catch ex As Exception
-            RaiseEventError("ConnectThread", ex.ToString, Me)
-        End Try
-    End Sub
 
     Public Function Send(ByVal data As String) As Boolean
         Return Send(New System.Text.ASCIIEncoding().GetBytes(data))
     End Function
     Public Function Send(ByVal data As Byte()) As Boolean
-        Dim thread As Thread
         Try
             bufferSendQueue.Enqueue(data)
-            thread = New Thread(AddressOf SendThread)
-            thread.Start()
-
+            If sendingInProgress = False Then
+                sendingInProgress = True
+                BeginSend()
+            End If
             Return True
         Catch ex As Exception
-            RaiseEventError("Send", ex.ToString, Me)
+            Debug.WriteLine(ex)
             Return False
         End Try
     End Function
-    Private Sub SendThread()
-        Dim data As Byte()
-        Dim mutexSend As Mutex
 
-        mutexSend = New Mutex(False, String.Format("mutexsend-{0}", client.GetHashCode)) 'lock when sock is sending
-        mutexSend.WaitOne()
+    Private Sub CallBackSend(ByVal ar As IAsyncResult)
+        Dim sentSize As Integer
+        Dim sockData As clsSocketData
+        Try
+            If ar Is Nothing = False Then
+                sockData = CType(ar.AsyncState, clsSocketData)
+                sentSize = client.EndSend(ar)
+                If sentSize = sockData.GetBuffer.Length Then
+                    BeginSend()
+                Else
+                    RaiseEvent EventError("CallBackSend", "Sent Inconsistent Data", Me)
+                End If
+            Else
+                RaiseEvent EventError("CallBackSend", "socket already disposed", Me)
+            End If
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+            RaiseEvent EventError("CallBackSend", ex.ToString, Me)
+        End Try
+    End Sub
+    Private Sub CallBackConnect(ByVal ar As IAsyncResult)
+        Try
+            If client.Connected = True Then
+                RaiseEvent EventMessage(SocketEvent.ConnectionEstablished, "Client is connected", Me)
+                BeginReceive()
+            Else
+                RaiseEvent EventMessage(SocketEvent.ConnectionFailed, "Client failed to connect", Me)
+            End If
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+            RaiseEvent EventError("CallBackConnect", ex.ToString, Me)
+        End Try
+    End Sub
+    Private Sub CallBackDataArrival(ByVal ar As IAsyncResult)
+        Dim sockData As clsSocketData
+        Dim receiveSize As Integer
+        Dim buffer As Byte()
+        Try
+            If ar Is Nothing = False AndAlso ar.AsyncState Is Nothing = False Then
+                sockData = CType(ar.AsyncState, clsSocketData)
+                If sockData Is Nothing = False AndAlso sockData.GetSocket() Is Nothing = False Then
+                    client = sockData.GetSocket()
+
+                    receiveSize = client.EndReceive(ar)
+                    If receiveSize > 0 Then
+                        buffer = New Byte(receiveSize - 1) {}
+                        Array.Copy(sockData.GetBuffer(), buffer, buffer.Length)
+                        SyncLock bufferReceiveQueue.SyncRoot()
+                            For Each block As Byte In buffer
+                                bufferReceiveQueue.Enqueue(block)
+                            Next
+                        End SyncLock
+                        RaiseEvent EventMessage(SocketEvent.DataArrival, buffer.Clone, Me)
+                        BeginReceive()
+                    Else
+                        RaiseEvent EventMessage(SocketEvent.ConnectionClosed, New Byte() {}, Me)
+                    End If
+                Else
+                    RaiseEvent EventError("CallBackDataArrival", "null refernces", Me)
+                End If
+            Else
+                RaiseEvent EventError("CallBackDataArrival", "null refernces", Me)
+            End If
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+            RaiseEvent EventError("CallBackDataArrival", ex.ToString, Me)
+        End Try
+    End Sub
+    Private Sub BeginSend()
+        Dim sockData As clsSocketData
+        Dim data As Byte()
+
         Try
             If client.Connected = True AndAlso bufferSendQueue.Count > 0 Then
                 data = CType(bufferSendQueue.Dequeue, Byte())
-                client.Send(data, data.Length, SocketFlags.None)
+                sockData = New clsSocketData(client, data)
+                client.BeginSend(data, 0, data.Length, SocketFlags.None, New AsyncCallback(AddressOf CallBackSend), sockData)
+            Else
+                sendingInProgress = False
             End If
         Catch ex As Exception
-            RaiseEventError("SendThread", ex.ToString, Me)
-        Finally
-            mutexSend.ReleaseMutex()
+            Debug.WriteLine(ex)
+            RaiseEvent EventError("BeginSend", ex.ToString, Me)
+        End Try
+    End Sub
+    Private Sub BeginReceive()
+        Dim sockData As clsSocketData
+        Try
+            sockData = New clsSocketData(client)
+            client.BeginReceive(sockData.GetBuffer(), 0, sockData.GetBuffer().Length, SocketFlags.None, New AsyncCallback(AddressOf CallBackDataArrival), sockData)
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+            RaiseEvent EventError("BeginReceive", ex.ToString, Me)
         End Try
     End Sub
 
@@ -434,14 +309,16 @@ Public Class clsSocketTCPClient
 End Class
 
 Public Class clsSocketTCPServer
-    Inherits clsSocket
+    Inherits clsSocketTCP
 
     Private server As Socket
+
+    Public Event eventMessage(ByVal socketEvent As SocketEvent, ByVal data As Object, ByVal socket As clsSocketTCP)
+    Public Event eventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocketTCP)
 
 
     Public Sub New()
         server = New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
-        server.Blocking = True
     End Sub
 
     Public Function GetListeningPort() As Integer
@@ -460,101 +337,66 @@ Public Class clsSocketTCPServer
 
     Public Function Dispose() As Boolean
         Try
-            Debug.WriteLine("before server.close")
             server.Close()
-            Debug.WriteLine("after server.close")
             Return True
         Catch ex As Exception
+            Debug.WriteLine(ex)
             Return False
-        Finally
-            RaiseEventMessage(SocketEvent.SocketDispose, Me)
         End Try
     End Function
 
-    Public Function Listen(ByVal port As Integer) As Boolean
-        Return Listen("", port)
-    End Function
-    Public Function Listen(ByVal ip As String, ByVal port As Integer) As Boolean
-        Dim thread As Thread
+    Public Function [Stop]() As Boolean
         Try
+            If server.IsBound Then
+                Dispose()
+                server = New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
+            End If
+            Return True
+        Catch ex As Exception
+            Debug.WriteLine(ex)
+            Return False
+        End Try
+    End Function
+
+    Public Function Listen(ByVal ip As String, ByVal port As Integer) As Boolean
+        Try
+            [Stop]()
             server = New Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)
-            server.Blocking = True
+            server.Blocking = False
             If ip.Length = 0 Then
                 server.Bind(New IPEndPoint(IPAddress.Any, port))
             Else
                 server.Bind(New IPEndPoint(IPAddress.Parse(ip), port))
             End If
             server.Listen(5)
-
-            thread = New Thread(AddressOf AcceptThread)
-            thread.Start()
-
+            server.BeginAccept(New AsyncCallback(AddressOf CallBackAccept), server)
             Return True
         Catch ex As Exception
-            RaiseEventError("Listen", ex.ToString, Me)
+            Debug.WriteLine(ex)
             Return False
         End Try
     End Function
+    Public Function Listen(ByVal port As Integer) As Boolean
+        Return Listen("", port)
+    End Function
 
-    Private Sub AcceptThread()
+    Private Sub CallBackAccept(ByVal ar As IAsyncResult)
         Dim client As clsSocketTCPClient
         Try
-            While (Not IsDisposed())
+            If ar Is Nothing = False AndAlso TypeOf (ar.AsyncState) Is Socket Then
                 client = New clsSocketTCPClient
-                client.Accept(server.Accept())
-
-                If client.IsConnected Then
-                    RaiseEventMessage(clsSocket.SocketEvent.ConnectionAccepted, client)
+                If client.Accept(server.EndAccept(ar)) Is Nothing = False AndAlso client.IsConnected Then
+                    RaiseEvent eventMessage(clsSocketTCP.SocketEvent.ConnectionAccepted, client, Me)
                 End If
-            End While
+                server.BeginAccept(New AsyncCallback(AddressOf CallBackAccept), server)
+            Else
+                RaiseEvent eventError("CallBackAccept", "socket already disposed", Me)
+            End If
         Catch ex As Exception
-            RaiseEventError("AcceptThread", ex.ToString, Me)
+            Debug.WriteLine("CallBackAccept")
+            RaiseEvent eventError("CallBackAccept", ex.ToString, Me)
         End Try
     End Sub
 
+
 End Class
-#End Region
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-'

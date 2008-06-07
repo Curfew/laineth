@@ -71,7 +71,8 @@
   <ItemGroup>
     <Compile Include="clsBotCommand.vb" />
     <Compile Include="clsGameHost.vb" />
-    <Compile Include="clsLENPServer.vb" />
+    <Compile Include="clsLENPServer.vb">
+    </Compile>
     <Compile Include="clsProtocolHost.vb" />
     <Compile Include="clsProtocolLENPServer.vb" />
     <Compile Include="frmConvertor.vb">

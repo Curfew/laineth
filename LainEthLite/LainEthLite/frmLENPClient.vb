@@ -12,7 +12,7 @@ Public Class frmLENPClient
 
 
 #Region "sock Event"
-    Private Sub sockClient_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As LainSocket.clsSocket) Handles sockClient.EventError
+    Private Sub sockClient_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As LainSocket.clsSocketTCP) Handles sockClient.EventError
         Try
             [Stop]()
             VerifyConnectionStatus("Connection Error")
@@ -21,7 +21,7 @@ Public Class frmLENPClient
             Debug.WriteLine(ex)
         End Try
     End Sub
-    Private Sub sockClient_OnEventMessage(ByVal socketEvent As LainSocket.clsSocket.SocketEvent, ByVal socket As LainSocket.clsSocket) Handles sockClient.eventMessage
+    Private Sub sockClient_OnEventMessage(ByVal socketEvent As LainSocket.clsSocketTCP.SocketEvent, ByVal data As Object, ByVal socket As LainSocket.clsSocketTCP) Handles sockClient.EventMessage
         Dim dataQ As Queue
         Dim client As clsSocketTCPClient
         Dim buffer As Byte()
@@ -30,15 +30,15 @@ Public Class frmLENPClient
         Try
             client = CType(socket, clsSocketTCPClient)
             Select Case socketEvent
-                Case clsSocket.SocketEvent.ConnectionEstablished
+                Case clsSocketTCP.SocketEvent.ConnectionEstablished
                     VerifyConnectionStatus("Connection Established")
-                Case clsSocket.SocketEvent.ConnectionFailed
+                Case clsSocketTCP.SocketEvent.ConnectionFailed
                     [Stop]()
                     VerifyConnectionStatus("Connection Failed")
-                Case clsSocket.SocketEvent.ConnectionClosedByPeer
+                Case clsSocketTCP.SocketEvent.ConnectionClosed
                     [Stop]()
                     VerifyConnectionStatus("Connection Closed")
-                Case clsSocket.SocketEvent.DataArrival
+                Case clsSocketTCP.SocketEvent.DataArrival
                     dataQ = client.GetReceiveQueue
                     list = New ArrayList
 
@@ -76,7 +76,7 @@ Public Class frmLENPClient
 #End Region
 
     Private Sub frmLENPClient_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
-        sockClient.Dispose()
+        sockClient.Stop()
     End Sub
 
 
@@ -89,9 +89,9 @@ Public Class frmLENPClient
 
     Private Sub buttonGo_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles buttonGo.Click
         If sockClient.IsConnected Then
-            sockClient.Dispose()
+            sockClient.Stop()
         Else
-            sockClient.Connect(clsSocket.GetFirstIP(txtIP.Text), CType(txtPort.Text, Integer))
+            sockClient.Connect(clsSocketTCP.GetFirstIP(txtIP.Text), CType(txtPort.Text, Integer))
         End If
 
     End Sub
@@ -180,7 +180,7 @@ Public Class frmLENPClient
     End Sub
 
     Private Sub [Stop]()
-        sockClient.Dispose()
+        sockClient.Stop()
     End Sub
     Private Sub VerifyConnectionStatus(ByVal status As String)
         Try

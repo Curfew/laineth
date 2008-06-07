@@ -22,7 +22,7 @@ Public Class frmLENPServer
         Dim IP As String
 
         lenp = frmLainEthLite.GetLENPServer
-        For Each IP In clsSocket.GetIP()
+        For Each IP In clsSocketTCP.GetIP()
             comboServerIP.Items.Add(IP)
         Next
 

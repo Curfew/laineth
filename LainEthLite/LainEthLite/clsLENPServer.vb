@@ -78,25 +78,25 @@ Public Class clsLENPServer
 #End Region
 
 #Region "sock event"
-    Private Sub sockServer_OnEventMessage(ByVal socketEvent As clsSocket.SocketEvent, ByVal socket As clsSocket)
+    Private Sub sockServer_OnEventMessage(ByVal socketEvent As clsSocketTCP.SocketEvent, ByVal data As Object, ByVal socket As clsSocketTCP)
         Dim client As clsSocketTCPClient
 
         Select Case socketEvent
-            Case clsSocket.SocketEvent.ConnectionAccepted
-                client = CType(socket, clsSocketTCPClient)
+            Case clsSocketTCP.SocketEvent.ConnectionAccepted
+                client = CType(data, clsSocketTCPClient)
                 AddHandler client.eventMessage, AddressOf client_OnEventMessage
                 AddHandler client.eventError, AddressOf client_OnEventError
 
                 hashClient.Add(client, ArrayList.Synchronized(New ArrayList))
-                client_OnEventMessage(clsSocket.SocketEvent.DataArrival, client)  'force a data arrival event
+                client_OnEventMessage(clsSocketTCP.SocketEvent.DataArrival, New Byte() {}, client)  'force a data arrival event
 
                 Debug.WriteLine("client join")
         End Select
     End Sub
-    Private Sub sockServer_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
+    Private Sub sockServer_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocketTCP)
         HostStop()
     End Sub
-    Private Sub client_OnEventMessage(ByVal socketEvent As clsSocket.SocketEvent, ByVal socket As clsSocket)
+    Private Sub client_OnEventMessage(ByVal socketEvent As clsSocketTCP.SocketEvent, ByVal data As Object, ByVal socket As clsSocketTCP)
         Dim dataQ As Queue
         Dim client As clsSocketTCPClient
         Dim mutexPackageGamePacket As Mutex
@@ -104,11 +104,11 @@ Public Class clsLENPServer
 
         client = CType(socket, clsSocketTCPClient)
         Select Case socketEvent
-            Case clsSocket.SocketEvent.ConnectionClosedByPeer
+            Case clsSocketTCP.SocketEvent.ConnectionClosed
                 ClientStop(client)
-            Case clsSocket.SocketEvent.ConnectionFailed
+            Case clsSocketTCP.SocketEvent.ConnectionFailed
                 ClientStop(client)
-            Case clsSocket.SocketEvent.DataArrival
+            Case clsSocketTCP.SocketEvent.DataArrival
                 mutexPackageGamePacket = New Mutex(False, String.Format("mutex-PackageGamePacket-{0}", client.GetHashCode)) 'different client process will run parrallel, same client will wait for mutex
                 mutexPackageGamePacket.WaitOne()
                 dataQ = client.GetReceiveQueue
@@ -124,7 +124,7 @@ Public Class clsLENPServer
                 mutexProcessAllPacket.ReleaseMutex()
         End Select
     End Sub
-    Private Sub client_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocket)
+    Private Sub client_OnEventError(ByVal errorFunction As String, ByVal errorString As String, ByVal socket As clsSocketTCP)
         Debug.WriteLine("sock error")
         ClientStop(CType(socket, clsSocketTCPClient))
     End Sub
@@ -197,7 +197,7 @@ Public Class clsLENPServer
             Debug.WriteLine("client stop")
 
             hashClient.Remove(client)
-            client.Dispose()
+            client.Stop()
             RemoveHandler client.EventMessage, AddressOf client_OnEventMessage
             RemoveHandler client.EventError, AddressOf client_OnEventError
 
@@ -211,7 +211,7 @@ Public Class clsLENPServer
 
     Public Function HostStop() As Boolean
         Try
-            sockServer.Dispose()
+            sockServer.Stop()
             Return True
         Catch ex As Exception
             Return False
