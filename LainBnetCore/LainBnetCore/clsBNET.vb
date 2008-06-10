@@ -477,9 +477,6 @@ Public Class clsBNET
 
     Public Function GameUnCreate() As Boolean
         Try
-            'Thread.Sleep(2000)
-            'Debug.WriteLine("before trysend")
-            'Thread.Sleep(2000)
             Return TrySend(sockBNET, bnet.SEND_SID_STOPADV, clsCommandPacket.PacketType.BNET, "SID_STOPADV")
 
         Catch ex As Exception
@@ -536,7 +533,7 @@ Public Class clsBNET
         Try
             chatTimer.Stop()
 
-            sockBNET.Dispose()
+            sockBNET.Stop()
             RemoveHandler sockBNET.eventMessage, AddressOf sockBNET_OnEventMessage
             RemoveHandler sockBNET.eventError, AddressOf sockBNET_OnEventError
 

@@ -249,7 +249,7 @@ Public Class clsGameHost
         Try
             Select Case socketEvent
                 Case clsSocketTCP.SocketEvent.ConnectionAccepted
-                    client = CType(socket, clsSocketTCPClient) 'New clsSocketTCPClient    'CType(socket, clsSocketTCPClient)
+                    client = CType(data, clsSocketTCPClient)
                     AddHandler client.EventMessage, AddressOf client_OnEventMessage
                     AddHandler client.EventError, AddressOf client_OnEventError
 
@@ -1224,7 +1224,7 @@ Public Class clsGameHost
                 End If
 
                 hashClient.Remove(client)
-                client.Dispose()
+                client.Stop()
                 RemoveHandler client.eventMessage, AddressOf client_OnEventMessage
                 RemoveHandler client.eventError, AddressOf client_OnEventError
                 RemoveHandler protocol.GetPlayerFromSocket(client).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
@@ -1270,7 +1270,7 @@ Public Class clsGameHost
             End If
 
             hashClient.Remove(client)
-            client.Dispose()
+            client.Stop()
             RemoveHandler client.eventMessage, AddressOf client_OnEventMessage
             RemoveHandler client.eventError, AddressOf client_OnEventError
             RemoveHandler protocol.GetPlayerFromSocket(client).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
@@ -1292,7 +1292,7 @@ Public Class clsGameHost
 
     Public Function HostStop() As Boolean
         Try
-            sockServer.Dispose()
+            sockServer.Stop()
             Return True
         Catch ex As Exception
             Return False
