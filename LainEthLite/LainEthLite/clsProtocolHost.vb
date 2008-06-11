@@ -174,29 +174,48 @@ Public Class clsHostPlayer
     Public Function GetPing() As Long
         Dim retVal As Long = 0
         Dim pingArray As ArrayList = pingValues 'make a copy of the data
-        pingArray.Sort() ' sort the array by ping
-        If pingArray.Count = 0 Then 'MrJag|0.9b|ping|prevent (0 / 2) - 1 below.
-            retVal = 0
-        ElseIf (pingArray.Count Mod 2) = 0 Then
-            'even
-            retVal = CLng(pingArray.Item(CInt(pingArray.Count / 2) - 1))
-        Else
-            'odd
-            retVal = CLng(pingArray.Item(CInt((pingArray.Count + 1) / 2) - 1))
+        Dim mean As Long = 0                    'average of entire array
+        Dim sum As Long = 0                     'sigma of (value - mean)^2
+        Dim std As Long = 0                     'standard deviation, sqrt(sum/n-1)
+        Dim counter As Integer = 0
+
+        If pingArray.Count = 0 Then
+            Return -1                       'no ping data
+        ElseIf pingArray.Count < 5 Then
+            Return -1
         End If
 
-        If pingArray.Count < 5 Then
-            retVal = -1
-        Else
-            If frmLainEthLite.LCpings = 255 Then
-                retVal = CLng(retVal / 2) ' (divide by 2) to match LC style pings
+        'Calculate the average ping
+        For index = 0 To pingArray.Count - 1
+            mean = mean + CLng(pingArray.Item(index))
+        Next
+        mean = CLng(mean / (pingArray.Count + 1))
+
+        'Calculate the standard deviation
+        For index = 0 To pingArray.Count - 1
+            sum = sum + CLng((CLng(pingArray.Item(index)) - mean) ^ 2)
+        Next
+        std = CLng(Math.Sqrt(CLng(sum / (pingArray.Count - 1))))
+
+        For index = 0 To pingArray.Count - 1
+            If CLng(pingArray.Item(index)) >= (mean - std) AndAlso CLng(pingArray.Item(index)) <= (mean + std) Then
+                counter += 1
+                retVal = retVal + CLng(pingArray.Item(index))
             End If
+        Next
+        retVal = CLng(retVal / counter)
+
+        If frmLainEthLite.LCpings = 255 Then
+            retVal = CLng(retVal / 2) ' (divide by 2) to match LC style pings
         End If
 
-            Return retVal
+        Return retVal
     End Function
     'MrJag|0.8c|ping|function to add to the ping data
     Public Function SetPing(ByVal ping As Long) As Boolean
+        If pingValues.Count > 10 Then
+            pingValues.RemoveAt(0)
+        End If
         Me.pingValues.Add(ping)
         Return True
     End Function

@@ -59,6 +59,7 @@ Public Class clsGameHost
     Private queuePacket As Queue
     Private listAction As ArrayList
     Private isGameLoaded As Boolean
+    Private countdownCounter As Integer
     Private isCountDownStarted As Boolean
     Private totalFinishLoad As Integer
     Private teamWon As Byte
@@ -92,7 +93,7 @@ Public Class clsGameHost
 
     Private WithEvents protocol As clsProtocolHost
     Private WithEvents actionTimer As Timers.Timer
-    Private WithEvents pingTimer As Timers.Timer
+    Private WithEvents lobbyTimer As Timers.Timer
     Private WithEvents engineTimer As Timers.Timer
     Private WithEvents endTimer As Timers.Timer
     Private WithEvents refreshTimer As Timers.Timer 'MrJag|0.10|refresh|
@@ -118,6 +119,7 @@ Public Class clsGameHost
         Me.bnet = New clsBNET
         Me.timeGameExpire = 0
         Me.isGameLoaded = False
+        Me.countdownCounter = 5
         Me.isCountDownStarted = False
         Me.totalFinishLoad = 0
         Me.teamWon = 0
@@ -142,7 +144,7 @@ Public Class clsGameHost
         listScourgePlayer = New ArrayList
         listReferee = New ArrayList
         engineTimer = New Timers.Timer
-        pingTimer = New Timers.Timer
+        lobbyTimer = New Timers.Timer
         actionTimer = New Timers.Timer
         endTimer = New Timers.Timer
         refreshTimer = New Timers.Timer             'MrJag|0.8c|refresh|
@@ -167,6 +169,7 @@ Public Class clsGameHost
         Me.bnet = bnet
         Me.timeGameExpire = 0
         Me.isGameLoaded = False
+        Me.countdownCounter = 5
         Me.isCountDownStarted = False
         Me.totalFinishLoad = 0
         Me.teamWon = 255
@@ -197,8 +200,8 @@ Public Class clsGameHost
         engineTimer = New Timers.Timer
         engineTimer.Interval = 1000
 
-        pingTimer = New Timers.Timer
-        pingTimer.Interval = 1000
+        lobbyTimer = New Timers.Timer
+        lobbyTimer.Interval = 1000
 
         actionTimer = New Timers.Timer
         actionTimer.Interval = 100
@@ -518,10 +521,14 @@ Public Class clsGameHost
     'MrJag|0.8c|ping|function for ping through firewall
     Private Sub botLobby_EventBotPing(ByVal maxPing As Integer) Handles botLobby.EventBotPing
         Dim pingText As System.Text.StringBuilder = New System.Text.StringBuilder
+
         Dim player As clsHostPlayer
         Dim players As Array = protocol.GetPlayerList 'MrJag|0.8c|observer| protocol.GetPlayerList(protocol.GetHostPID)
         Dim playerPingComparer As clsPlayerPingComparer = New clsPlayerPingComparer()
         Dim playerPing As Long
+        Dim kickList As ArrayList = New ArrayList
+        Dim kickText As System.Text.StringBuilder = New System.Text.StringBuilder
+        kickText.Append(String.Format("Players kicked for pinging over {0}ms: ", maxPing))
 
         Array.Sort(players, playerPingComparer)
         Array.Reverse(players)
@@ -534,8 +541,10 @@ Public Class clsGameHost
                     If playerPing > maxPing Then
                         For Each slot In protocol.GetSlotList
                             If slot.GetPID = player.GetPID Then
-                                SendChat(String.Format("Kicking {0} for having a ping over {1}.", player.GetName, maxPing))
-                                botLobby_EventBotSlot(True, slot.GetSID)  'kick the player
+                                kickList.Add(slot.GetSID)
+                                kickText.Append(String.Format("{0}, ", player.GetName))
+                                'SendChat(String.Format("Kicking {0} for having a ping over {1}.", player.GetName, maxPing))
+                                'botLobby_EventBotSlot(True, slot.GetSID)  'kick the player
                             End If
                         Next
                     End If
@@ -548,6 +557,12 @@ Public Class clsGameHost
             End If
         Next
         SendChat(String.Format("{0}", pingText))
+        If kickList.Count > 0 Then
+            SendChat(String.Format("{0}", kickText))
+            'For index = 0 To kickList.Count
+            'botLobby_EventBotSlot(True, CByte(kickList.Item(index)))  'kick the player
+            'Next
+        End If
     End Sub
     Private Sub OnEventPingCompleted(ByVal sender As Object, ByVal e As System.Net.NetworkInformation.PingCompletedEventArgs)
         Dim result As PingReply
@@ -779,13 +794,55 @@ Public Class clsGameHost
             Debug.WriteLine(ex)
         End Try
     End Sub
-    Private Sub pingTimer_Elapsed(ByVal sender As Object, ByVal e As System.Timers.ElapsedEventArgs) Handles pingTimer.Elapsed
+    Private Sub lobbyTimer_Elapsed(ByVal sender As Object, ByVal e As System.Timers.ElapsedEventArgs) Handles lobbyTimer.Elapsed
         Static isRunning As Boolean = False
         Try
             If isRunning = False Then
                 isRunning = True
 
-                SendAllClient(protocol.SEND_W3GS_PING_FROM_HOST())
+                Dim maxPing As Integer = 150
+                Dim kickList As ArrayList = New ArrayList
+                Dim kickText As System.Text.StringBuilder = New System.Text.StringBuilder
+                Dim pingComplete As Boolean = True
+                kickText.Append(String.Format("Auto-kicked for pings over {0}ms: ", maxPing))
+
+                'search for players with high pings and add them to the kick list
+                For Each player As clsHostPlayer In protocol.GetPlayerList
+                    If player.GetPID = protocol.GetHostPID Then
+                        'skip
+                    Else
+                        If player.GetPing >= 0 AndAlso player.GetPing > maxPing Then
+                            For Each slot In protocol.GetSlotList
+                                If slot.GetPID = player.GetPID Then
+                                    kickList.Add(slot.GetSID)
+                                    kickText.Append(String.Format("{0}, ", player.GetName))
+                                End If
+                            Next
+                        ElseIf player.GetPing = -1 Then
+                            pingComplete = False
+                        End If
+                    End If
+                Next
+
+                'kick the players on the kick list
+                If kickList.Count > 0 Then
+                    SendChat(String.Format("{0}", kickText))
+                    While kickList.Count > 0
+                        botLobby_EventBotSlot(True, CByte(kickList.Item(0)))  'kick the player
+                        kickList.RemoveAt(0)
+                    End While
+                End If
+
+                SendAllClient(protocol.SEND_W3GS_PING_FROM_HOST())  'ping all players
+
+                If protocol.GetPlayerCount = 10 AndAlso pingComplete Then
+                    If countdownCounter > 0 Then
+                        SendChat(String.Format("{0}", countdownCounter))
+                        countdownCounter = countdownCounter - 1
+                    ElseIf countdownCounter = 0 Then
+                        GameStart(False)
+                    End If
+                End If
 
                 isRunning = False
             End If
@@ -865,7 +922,7 @@ Public Class clsGameHost
                                 If totalFinishLoad = protocol.GetPlayerCount Then
                                     Debug.WriteLine(String.Format("All {0} players finished loading.", protocol.GetPlayerCount))
                                     isGameLoaded = True
-                                    pingTimer.Stop()
+                                    lobbyTimer.Stop()
                                     actionTimer.Start()
                                     refreshTimer.Stop()
 
@@ -1302,7 +1359,7 @@ Public Class clsGameHost
         Try
             If sockServer.Listen(gamePort) Then
                 engineTimer.Start()
-                pingTimer.Start()
+                lobbyTimer.Start()
                 If enableRefresh And gameState = GAME_PUBLIC Then
                     refreshTimer.Start() 'MrJag|0.8c|refresh|start the timer
                 End If
@@ -1341,7 +1398,7 @@ Public Class clsGameHost
             ClientStop(CType(list.ToArray(GetType(clsSocketTCPClient)), clsSocketTCPClient()))
 
             engineTimer.Stop()
-            pingTimer.Stop()
+            lobbyTimer.Stop()
             actionTimer.Stop()
             endTimer.Stop()
             refreshTimer.Stop() 'MrJag|0.10|refresh| stop the timer
