@@ -181,7 +181,7 @@ Public Class clsHostPlayer
 
         If pingArray.Count = 0 Then
             Return -1                       'no ping data
-        ElseIf pingArray.Count < 5 Then
+        ElseIf pingArray.Count < 10 Then
             Return -1
         End If
 
@@ -213,7 +213,7 @@ Public Class clsHostPlayer
     End Function
     'MrJag|0.8c|ping|function to add to the ping data
     Public Function SetPing(ByVal ping As Long) As Boolean
-        If pingValues.Count > 10 Then
+        If pingValues.Count > 20 Then
             pingValues.RemoveAt(0)
         End If
         Me.pingValues.Add(ping)
@@ -265,6 +265,10 @@ Public Class clsProtocolHost
         W3GS_COUNTDOWN_END = 11         '0x0B
         W3GS_INCOMING_ACTION = 12       '0x0C
         W3GS_CHAT_FROM_HOST = 15        '0x0F
+
+        W3GS_START_LAG = 16             '0x10
+        W3GS_STOP_LAG = 17              '0x11
+
         W3GS_HOST_KICK_PLAYER = 28      '0x1C
         W3GS_REQJOIN = 30               '0x1E
         W3GS_LEAVEGAME = 33             '0x21
@@ -727,7 +731,19 @@ Public Class clsProtocolHost
             Return 255
         End Try
     End Function
-
+    Public Function SlotComputer(ByVal SID As Byte, ByVal skill As Byte) As Boolean
+        Dim slot As clsHostSlot
+        Try
+            Beep()
+            If hashSlot.Contains(SID) Then
+                slot = CType(hashSlot.Item(SID), clsHostSlot)
+                hashSlot(slot.GetSID) = New clsHostSlot(slot.GetSID, New Byte() {0, 100, 0, 1, slot.GetTeam, slot.GetColor, slot.GetRace, skill, 100})
+            End If
+            Return True
+        Catch ex As Exception
+            Return False
+        End Try
+    End Function
     Public Function SlotOpenClose(ByVal SID As Byte, ByVal open As Boolean) As Boolean
         Dim slot As clsHostSlot
         Try

@@ -119,7 +119,7 @@ Public Class clsGameHost
         Me.bnet = New clsBNET
         Me.timeGameExpire = 0
         Me.isGameLoaded = False
-        Me.countdownCounter = 5
+        Me.countdownCounter = -1
         Me.isCountDownStarted = False
         Me.totalFinishLoad = 0
         Me.teamWon = 0
@@ -169,7 +169,7 @@ Public Class clsGameHost
         Me.bnet = bnet
         Me.timeGameExpire = 0
         Me.isGameLoaded = False
-        Me.countdownCounter = 5
+        Me.countdownCounter = -1
         Me.isCountDownStarted = False
         Me.totalFinishLoad = 0
         Me.teamWon = 255
@@ -201,7 +201,7 @@ Public Class clsGameHost
         engineTimer.Interval = 1000
 
         lobbyTimer = New Timers.Timer
-        lobbyTimer.Interval = 1000
+        lobbyTimer.Interval = 500
 
         actionTimer = New Timers.Timer
         actionTimer.Interval = 100
@@ -503,6 +503,17 @@ Public Class clsGameHost
     Private Sub botLobby_EventBotResponse(ByVal msg As String) Handles botLobby.EventBotResponse
         SendChat(msg)
     End Sub
+    Private Sub botLobby_EventBotComputer(ByVal SID As Byte, ByVal skill As Byte) Handles botLobby.EventBotComputer
+        Dim player As clsHostPlayer = protocol.GetPlayerFromSID(SID)
+        If player.GetPID <> 255 Then
+            ClientStop(player.GetSock, True)
+            protocol.SlotComputer(SID, skill)
+        Else
+            protocol.SlotComputer(SID, skill)
+        End If
+        SendSlotInfo()
+    End Sub
+
     Private Sub botLobby_EventBotSlot(ByVal open As Boolean, ByVal SID As Byte) Handles botLobby.EventBotSlot
         Dim player As clsHostPlayer = protocol.GetPlayerFromSID(SID)
         If player.GetPID <> 255 Then
@@ -513,7 +524,38 @@ Public Class clsGameHost
         SendSlotInfo()
     End Sub
     Private Sub botLobby_EventBotStart(ByVal isForced As Boolean) Handles botLobby.EventBotStart
-        GameStart(isForced)
+        Dim unsafes As System.Text.StringBuilder
+
+        countdownCounter = 5
+
+        If isForced = False Then    'is not forced then must pass spoof check and balance team
+            If startLock <> 255 Then
+                SendChat(String.Format("The game has been locked by {0}, an admin must clear the lock or use -START FORCE to continue.", protocol.GetPlayerFromPID(startLock).GetName))
+                countdownCounter = -1
+                Return
+            End If
+            If protocol.GetPlayerCountTeam(TEAM_SENTINEL) <> protocol.GetPlayerCountTeam(TEAM_SCOURGE) Then
+                SendChat("The teams are uneven, use -START FORCE to continue.")
+                countdownCounter = -1
+                Return
+            End If
+
+            unsafes = New System.Text.StringBuilder
+            For Each player In protocol.GetPlayerList(protocol.GetHostPID)
+                If spoofSafe.Contains(player.GetName) = False Then
+                    unsafes.Append(String.Format("{0}, ", player.GetName))
+                End If
+            Next
+
+            If unsafes.Length > 0 Then
+                SendChat(String.Format("Players Require Identification: {0}", unsafes.ToString))
+                SendChat(String.Format("Please Identify (Spoof Check) By Whispering [ /w {0} ]", hostName))
+                countdownCounter = -1
+                Return
+            End If
+        End If
+
+        'GameStart(isForced)
     End Sub
     Private Sub botLobby_EventBotEnd() Handles botLobby.EventBotEnd
         Dispose("Lobby Canceled")
@@ -683,6 +725,10 @@ Public Class clsGameHost
         Dim currentByte As Byte
         Dim list As ArrayList
         Dim text As String
+        Dim playerkills(11) As Integer
+        Dim playerdeaths(11) As Integer
+        Dim playercreeps(11) As Integer
+        Dim playerdenies(11) As Integer
 
         Try
             packet = New ArrayList
@@ -696,6 +742,58 @@ Public Class clsGameHost
             If buffer.Length >= 3 AndAlso buffer(3) = 107 Then
                 'Debug.WriteLine(clsHelper.PrintArray(buffer))
                 'Debug.WriteLine(clsHelper.PrintArray(buffer, clsHelper.PrintType.ASCII))
+
+                '---------[Get Playerstats]----------------
+                playerkills(0) = buffer(13)
+                playerdeaths(0) = buffer(27)
+                playercreeps(0) = buffer(41)
+                playerdenies(0) = buffer(55)
+
+                playerkills(5) = buffer(84)
+                playerdeaths(5) = buffer(98)
+                playercreeps(5) = buffer(112)
+                playerdenies(5) = buffer(126)
+
+                playerkills(1) = buffer(155)
+                playerdeaths(1) = buffer(169)
+                playercreeps(1) = buffer(183)
+                playerdenies(1) = buffer(197)
+
+                playerkills(6) = buffer(226)
+                playerdeaths(6) = buffer(240)
+                playercreeps(6) = buffer(254)
+                playerdenies(6) = buffer(268)
+
+                playerkills(2) = buffer(297)
+                playerdeaths(2) = buffer(311)
+                playercreeps(2) = buffer(325)
+                playerdenies(2) = buffer(339)
+
+                playerkills(7) = buffer(368)
+                playerdeaths(7) = buffer(382)
+                playercreeps(7) = buffer(396)
+                playerdenies(7) = buffer(410)
+
+                playerkills(3) = buffer(439)
+                playerdeaths(3) = buffer(453)
+                playercreeps(3) = buffer(467)
+                playerdenies(3) = buffer(481)
+
+                playerkills(8) = buffer(511)
+                playerdeaths(8) = buffer(526)
+                playercreeps(8) = buffer(541)
+                playerdenies(8) = buffer(556)
+
+                playerkills(4) = buffer(586)
+                playerdeaths(4) = buffer(600)
+                playercreeps(4) = buffer(614)
+                playerdenies(4) = buffer(628)
+
+                playerkills(9) = buffer(658)
+                playerdeaths(9) = buffer(673)
+                playercreeps(9) = buffer(688)
+                playerdenies(9) = buffer(703)
+                '---------[Get Playerstats]----------------
 
                 list = New ArrayList
                 i = buffer.Length - 1 - 5
@@ -713,6 +811,7 @@ Public Class clsGameHost
                 If isGameLoaded = True AndAlso teamWon = 255 Then 'winner not yet set
                     teamWon = CType(team - 1, Byte)
                     SendChat(String.Format("{0} Wins!", GetTeamName(teamWon)))
+                    SendChat(String.Format("Player 1:  Kills({0}), Deaths({1}), Creeps({2}), Denies({3}).", playerkills(0), playerdeaths(0), playercreeps(0), playerdenies(0)))
                     'SendChat(String.Format("{0} Has Won The Game ! Tree/Throne Down [{1}]", GetTeamName(teamWon), protocol.GetPlayerFromPID(fromPID).GetName))
                     AnnouceWinner(callerName, gameName, CType(listSentinelPlayer.ToArray(GetType(String)), String()), CType(listScourgePlayer.ToArray(GetType(String)), String()), CType(listReferee.ToArray(GetType(String)), String()), GetTeamName(teamWon))
                 End If
@@ -804,7 +903,7 @@ Public Class clsGameHost
                 Dim kickList As ArrayList = New ArrayList
                 Dim kickText As System.Text.StringBuilder = New System.Text.StringBuilder
                 Dim pingComplete As Boolean = True
-                kickText.Append(String.Format("Auto-kicked for pings over {0}ms: ", maxPing))
+                kickText.Append(String.Format("Kicked for excessive pings:  "))
 
                 'search for players with high pings and add them to the kick list
                 For Each player As clsHostPlayer In protocol.GetPlayerList
@@ -835,15 +934,26 @@ Public Class clsGameHost
 
                 SendAllClient(protocol.SEND_W3GS_PING_FROM_HOST())  'ping all players
 
-                If protocol.GetPlayerCount = 10 AndAlso pingComplete Then
-                    If countdownCounter > 0 Then
-                        SendChat(String.Format("{0}", countdownCounter))
-                        countdownCounter = countdownCounter - 1
-                    ElseIf countdownCounter = 0 Then
-                        GameStart(False)
+
+                If countdownCounter > 0 Then
+                    SendChat(String.Format("{0}. . .", countdownCounter))
+                    countdownCounter = countdownCounter - 1
+                ElseIf countdownCounter = 0 Then
+                    SendChat(String.Format("Game Started. . .", countdownCounter))
+                    GameStart(False)
+                ElseIf countdownCounter = -1 Or countdownCounter = -2 Then
+                    If protocol.GetPlayerCount = 10 AndAlso pingComplete Then
+                        countdownCounter = -3
+                        SendChat("The game is ready to start...")
+                    ElseIf protocol.GetPlayerCount = 10 AndAlso countdownCounter <> -2 Then
+                        countdownCounter = -2
+                        SendChat("Waiting on ping check to complete.")
+                    End If
+                ElseIf countdownCounter = -3 Then
+                    If protocol.GetPlayerCount < 10 Or pingComplete = False Then
+                        countdownCounter = -1
                     End If
                 End If
-
                 isRunning = False
             End If
         Catch ex As Exception
@@ -926,7 +1036,7 @@ Public Class clsGameHost
                                     actionTimer.Start()
                                     refreshTimer.Stop()
 
-                                    SendChat(loadAwards)
+                                    SendChat(String.Format("{0}", loadAwards))
                                     SendChat(String.Format("Longest Load By Player: {0} - {1} Seconds", player.GetName, Math.Round(Now.Subtract(timeLastLoad).TotalSeconds, 2)))
 
                                 End If
@@ -1191,38 +1301,10 @@ Public Class clsGameHost
     Private Function GameStart(ByVal isForced As Boolean) As Boolean
         Static runOnce As Boolean = False
         Dim player As clsHostPlayer
-        Dim unsafes As System.Text.StringBuilder
         Dim slot As clsHostSlot
         Try
             If runOnce = False Then
-
-                If isForced = False Then    'is not forced then must pass spoof check and balance team
-                    If startLock <> 255 Then
-                        SendChat(String.Format("The game has been locked by {0}, an admin must clear the lock or use -START FORCE to continue.", protocol.GetPlayerFromPID(startLock).GetName))
-                        Return False
-                    End If
-                    If protocol.GetPlayerCountTeam(TEAM_SENTINEL) <> protocol.GetPlayerCountTeam(TEAM_SCOURGE) Then
-                        SendChat("The teams are uneven, use -START FORCE to continue.")
-                        Return False
-                    End If
-
-                    unsafes = New System.Text.StringBuilder
-                    For Each player In protocol.GetPlayerList(protocol.GetHostPID)
-                        If spoofSafe.Contains(player.GetName) = False Then
-                            unsafes.Append(String.Format("{0}, ", player.GetName))
-                        End If
-                    Next
-
-                    If unsafes.Length > 0 Then
-                        SendChat(String.Format("Players Require Identification: {0}", unsafes.ToString))
-                        SendChat(String.Format("Please Identify (Spoof Check) By Whispering [ /w {0} ]", hostName))
-                        Return False
-                    End If
-
-                End If
-
                 runOnce = True
-
                 For Each slot In protocol.GetSlotList
                     If slot.GetPID <> 0 AndAlso slot.GetPID <> 255 Then
                         player = protocol.GetPlayerFromPID(slot.GetPID)
@@ -1241,7 +1323,6 @@ Public Class clsGameHost
 
                 UnCreate()
                 HostStop()
-
 
                 isCountDownStarted = True
                 SendAllClient(protocol.SEND_W3GS_COUNTDOWN_START)
@@ -1292,6 +1373,10 @@ Public Class clsGameHost
             Next
             SendSlotInfo()
 
+            'If countdownCounter >= 0 Then
+            'countdownCounter = -1
+            'SendChat("Countdown aborted!")
+            'End If
             If isCountDownStarted = False Then
                 timeGameExpire = TIME_GAME_EXPIRE_COUNTER - 60 'check 1 minutes afer
             ElseIf isGameLoaded Then
@@ -1332,6 +1417,10 @@ Public Class clsGameHost
             RemoveHandler client.eventError, AddressOf client_OnEventError
             RemoveHandler protocol.GetPlayerFromSocket(client).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
 
+            If countdownCounter >= 0 Then
+                countdownCounter = -1
+                SendChat("Countdown aborted!")
+            End If
             If isCountDownStarted = False Then
                 timeGameExpire = TIME_GAME_EXPIRE_COUNTER - 60 'check 1 minutes afer
             ElseIf isGameLoaded Then

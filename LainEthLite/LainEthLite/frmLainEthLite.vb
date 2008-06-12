@@ -25,7 +25,7 @@ Public Class frmLainEthLite
     Private Const GAME_PRIVATE As Integer = 17
     Private Const GAME_PUBLIC As Integer = 16
 
-    Public Const ProjectLainVersion As String = "Battle.net Game Host v0.12 beta"
+    Public Const ProjectLainVersion As String = "Battle.net Game Host v0.13 beta"
     Public Const ProjectLainName As String = "LainEthLite"
     Public Const ProjectLainConfig As String = "LainEthLiteConfiguration"
     Public Const ProjectLainMap As String = "LainEthMap"

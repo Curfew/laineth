@@ -35,6 +35,7 @@ Public Class clsBotCommandClassifier
         SPOOF
         LOCK
         UNLOCK
+        COMP
 
         'game
         LATENCY
@@ -336,6 +337,7 @@ Public Class clsBotCommandHostLobby
 
     Public Event EventBotResponse(ByVal msg As String)
     Public Event EventBotSlot(ByVal open As Boolean, ByVal slotNumber As Byte)
+    Public Event EventBotComputer(ByVal slotNumber As Byte, ByVal skill As Byte)
     Public Event EventBotStart(ByVal isForced As Boolean)
     Public Event EventBotEnd()
     Public Event EventBotSwap(ByVal slot1 As Byte, ByVal slot2 As Byte)
@@ -424,6 +426,19 @@ Public Class clsBotCommandHostLobby
                         End If
                     End If
                     RaiseEvent EventBotResponse("-CLOSE [1..12]")
+                Case clsBotCommandClassifier.BotCommandType.COMP
+                    If command.commandParamameter.Length = 2 Then
+                        If IsNumeric(command.commandParamameter(0)) AndAlso IsNumeric(command.commandParamameter(1)) Then
+                            number = CType(command.commandParamameter(0), Byte)
+                            number2 = CType(command.commandParamameter(1), Byte)
+
+                            If number >= 1 AndAlso number <= 12 AndAlso number2 >= 1 AndAlso number2 <= 12 Then
+                                RaiseEvent EventBotComputer(CType(number - 1, Byte), CType(number2 - 1, Byte))
+                                Exit Select
+                            End If
+                        End If
+                    End If
+                    RaiseEvent EventBotResponse("-COMP [1..12] [1..3]")
                 Case clsBotCommandClassifier.BotCommandType.KICK
                     If command.commandParamameter.Length = 1 Then
                         target = command.commandParamameter(0)
