@@ -231,7 +231,7 @@ Public Class clsBotCommandHostChannel
                             For i = 0 To command.commandParamameter.Length - 1
                                 channel = channel & command.commandParamameter(i) & " "
                             Next
-                            RaiseEvent EventBotChangeChannel(channel)
+                            RaiseEvent EventBotChangeChannel(channel.Trim(CChar(" ")))
                         Else
                             If CStr(data.GetUser).ToLower = frmLainEthLite.RootAdmin Then
                                 RaiseEvent EventBotResponse("!CHANNEL [channelname]", True, data.GetUser)
