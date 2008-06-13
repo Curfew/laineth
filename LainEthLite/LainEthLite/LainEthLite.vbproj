@@ -70,6 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="clsBotCommand.vb" />
+    <Compile Include="clsData.vb" />
     <Compile Include="clsGameHost.vb" />
     <Compile Include="clsLENPServer.vb">
     </Compile>
