@@ -734,7 +734,6 @@ Public Class clsProtocolHost
     Public Function SlotComputer(ByVal SID As Byte, ByVal skill As Byte) As Boolean
         Dim slot As clsHostSlot
         Try
-            Beep()
             If hashSlot.Contains(SID) Then
                 slot = CType(hashSlot.Item(SID), clsHostSlot)
                 hashSlot(slot.GetSID) = New clsHostSlot(slot.GetSID, New Byte() {0, 100, 0, 1, slot.GetTeam, slot.GetColor, slot.GetRace, skill, 100})

@@ -912,7 +912,7 @@ Public Class clsGameHost
                     Else
                         If player.GetPing >= 0 AndAlso player.GetPing > maxPing Then
                             For Each slot In protocol.GetSlotList
-                                If slot.GetPID = player.GetPID Then
+                                If (slot.GetPID = player.GetPID) And (reserveList.Contains(player.GetName.ToLower) = False) Then
                                     kickList.Add(slot.GetSID)
                                     kickText.Append(String.Format("{0}, ", player.GetName))
                                 End If
@@ -1373,10 +1373,10 @@ Public Class clsGameHost
             Next
             SendSlotInfo()
 
-            'If countdownCounter >= 0 Then
-            'countdownCounter = -1
-            'SendChat("Countdown aborted!")
-            'End If
+            If isGameLoaded = False AndAlso countdownCounter >= 0 Then
+                countdownCounter = -1
+                SendChat("Countdown aborted!")
+            End If
             If isCountDownStarted = False Then
                 timeGameExpire = TIME_GAME_EXPIRE_COUNTER - 60 'check 1 minutes afer
             ElseIf isGameLoaded Then
@@ -1417,7 +1417,7 @@ Public Class clsGameHost
             RemoveHandler client.eventError, AddressOf client_OnEventError
             RemoveHandler protocol.GetPlayerFromSocket(client).EventSpoofCheck, AddressOf OnEventMessage_SpoofCheck
 
-            If countdownCounter >= 0 Then
+            If isGameLoaded = False AndAlso countdownCounter >= 0 Then
                 countdownCounter = -1
                 SendChat("Countdown aborted!")
             End If
